@@ -1,0 +1,28 @@
+name: Daily Stock News Delivery
+
+on:
+  schedule:
+    # 12:30 UTC is 6:00 PM IST
+    - cron: '30 12 * * *'
+  workflow_dispatch: # This adds the "Run" button for testing
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: pip install yfinance requests
+
+      - name: Run News Bot
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python news_bot.py
