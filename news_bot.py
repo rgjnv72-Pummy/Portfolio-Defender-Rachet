@@ -1,7 +1,6 @@
 import yfinance as yf
 import requests
 import os
-import re
 from datetime import datetime
 
 # --- AUTH ---
@@ -18,63 +17,69 @@ def send_to_telegram(text):
     url = f"https://telegram.org{TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": text, "parse_mode": "Markdown", "disable_web_page_preview": True}
     try:
-        requests.post(url, json=payload, timeout=10)
-    except: pass
+        r = requests.post(url, json=payload, timeout=10)
+        print(f"Telegram response: {r.status_code}")
+    except Exception as e:
+        print(f"Telegram failed: {e}")
 
-def get_fallback_news(ticker):
-    """Simple text-based backup to avoid XML crashes"""
+def get_google_news(ticker):
+    """Robust backup using simple string splitting"""
     news_items = []
     try:
         query = ticker.replace('.NS', '')
-        url = f"https://google.com{query}+stock+news&hl=en-IN&gl=IN&ceid=IN:en"
-        response = requests.get(url, timeout=10)
-        # Use Regex to find titles and links (more stable than XML parsing)
-        titles = re.findall(r'<title>(.*?)</title>', response.text)[1:4] # Skip feed title
-        links = re.findall(r'<link>(.*?)</link>', response.text)[1:4]
-        for t, l in zip(titles, links):
-            news_items.append({'title': t, 'link': l})
+        # Different Google News RSS URL
+        url = f"https://google.com{query}+share+price&hl=en-IN&gl=IN&ceid=IN:en"
+        response = requests.get(url, timeout=15)
+        
+        # Split by <item> tags to get individual stories
+        parts = response.text.split('<item>')[1:4] 
+        for part in parts:
+            title = part.split('<title>')[1].split('</title>')[0]
+            link = part.split('<link>')[1].split('</link>')[0]
+            # Clean up the title (Google adds " - Source" at the end)
+            clean_title = title.split(' - ')[0].replace('[', '').replace(']', '')
+            news_items.append({'title': clean_title, 'link': link})
     except: pass
     return news_items
 
 def deliver_news():
-    header = f"🗞️ *TOP 3 HEADLINES*\n_{datetime.now().strftime('%d %b %Y')}_\n"
+    header = f"🗞️ *HOLDINGS NEWS UPDATE*\n_{datetime.now().strftime('%d %b %Y, %I:%M %p')}_\n"
     header += "—" * 15 + "\n"
+    
     current_message = header
-    found_any = False
+    stocks_with_news = 0
     
     for ticker in MY_HOLDINGS:
         name = ticker.replace('.NS', '')
-        news_list = []
-        
-        # 1. Try Yahoo Finance
+        # Try Yahoo first
         try:
             stock = yf.Ticker(ticker)
             news_list = stock.news[:3]
-        except: pass
+        except: news_list = []
 
-        # 2. Try Fallback if Yahoo is empty
+        # Use Google if Yahoo is empty
         if not news_list:
-            news_list = get_fallback_news(ticker)
+            news_list = get_google_news(ticker)
             
         if news_list:
-            found_any = True
+            stocks_with_news += 1
             ticker_block = f"\n🔹 *{name}*\n"
             for i, article in enumerate(news_list, 1):
-                title = article.get('title', 'No Title').replace('[', '').replace(']', '') # Clean Markdown
+                title = article.get('title', 'Headline')
                 link = article.get('link', '#')
                 ticker_block += f"{i}. [{title}]({link})\n"
             
-            # Send and reset if message gets too long
             if len(current_message) + len(ticker_block) > 4000:
                 send_to_telegram(current_message)
                 current_message = ticker_block
             else:
                 current_message += ticker_block
 
-    if not found_any:
-        send_to_telegram(header + "\nNo major news found for your holdings today.")
-    elif current_message != header:
-        send_to_telegram(current_message)
+    # FINAL CHECK: If no news found at all, tell the user!
+    if stocks_with_news == 0:
+        current_message += "\n☕ No new headlines found for your holdings in the last 24 hours."
+
+    send_to_telegram(current_message)
 
 if __name__ == "__main__":
     deliver_news()
