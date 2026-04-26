@@ -7,7 +7,7 @@ import http.client, json, os
 MY_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 MY_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
-# --- HOLDINGS ---
+# --- HOLDINGS (The single source of truth) ---
 MY_HOLDINGS = {
     "CHENNPETRO.NS": [200, 910.00, "2026-03-12", "Energy"],
     "ABB.NS": [30, 6320.00, "2026-03-18", "Capital Goods"],
@@ -66,17 +66,14 @@ def run_advanced_guardian():
             })
         except: continue
 
-    # Final Report Assembly
     report = "🚀 *DYNAMIC PORTFOLIO REPORT*\n"
     report += f"Nifty 50: {nifty_chg:+.2f}% 🏛️\n\n"
     
-    # Sort: Cuts first, then the rest
     sorted_results = sorted(results, key=lambda x: x['is_cut'], reverse=True)
-    for res in sorted_results:
-        report += res['text']
+    for res in sorted_results: report += res['text']
 
     report += "🏗️ *SECTOR EXPOSURE*\n"
-    for sec, val in sorted(sector_values.items(), key=lambda item: item[1], reverse=True):
+    for sec, val in sorted(sector_values.items(), key=lambda x: x[1], reverse=True):
         report += f"• {sec}: {(val/total_val)*100:.1f}%\n"
 
     port_daily_pct = (daily_gain_sum / (total_val - daily_gain_sum)) * 100
