@@ -1,8 +1,9 @@
 import yfinance as yf
 import pandas as pd
-import os, json, http.client
+import numpy as np
+import http.client, json, os
 
-# 1. HOLDINGS (Top-level for News Bot access)
+# --- YOUR MASTER HOLDINGS ---
 MY_HOLDINGS = {
     "CHENNPETRO.NS": [200, 910.00, "2026-03-12", "Energy"],
     "ABB.NS": [30, 6320.00, "2026-03-18", "Capital Goods"],
@@ -17,6 +18,9 @@ MY_HOLDINGS = {
     "AUROPHARMA.NS": [70, 1350.00, "2026-04-10", "Pharma"],
     "SAMMAANCAP.NS": [922, 154.89, "2026-04-13", "Finance"]
 }
+
+# ... (Rest of your existing guardian code) ...
+
 
 def run_advanced_guardian():
     # ... (Your existing ATR/Ratchet code here) ...
