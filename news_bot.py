@@ -8,9 +8,18 @@ TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 MY_HOLDINGS = [
-    "ABB.NS", "CHENNPETRO.NS", "GPIL.NS", "TATAPOWER.NS", 
-    "ONGC.NS", "LLOYDSME.NS", "ADANIPOWER.NS", "PREMIERENE.NS", 
-    "NATCOPHARM.NS", "ASHOKLEY.NS", "AUROPHARMA.NS", "SAMMAANCAP.NS"
+    "GPIL.NS", 
+    "LLOYDSME.NS", 
+    "PREMIERENE.NS", 
+    "NATCOPHARM.NS", 
+    "ADANIPOWER.NS", 
+    "ASHOKLEY.NS", 
+    "SAMMAANCAP.NS", 
+    "ORIENTELEC.NS", 
+    "AARTIIND.NS", 
+    "SKYGOLD.NS"
+]
+
 ]
 
 def send_to_telegram(text):
