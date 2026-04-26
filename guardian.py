@@ -9,18 +9,20 @@ MY_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 # --- HOLDINGS ---
 MY_HOLDINGS = {
-    "CHENNPETRO.NS": [200, 910.00, "2026-03-12", "Energy"],
-    "ABB.NS": [30, 6320.00, "2026-03-18", "Capital Goods"],
-    "GPIL.NS": [760, 262.98, "2026-03-23", "Metals"],
-    "TATAPOWER.NS": [500, 403.00, "2026-03-23", "Energy"],
-    "ONGC.NS": [700, 287.20, "2026-04-02", "Energy"],
+    
+   MY_HOLDINGS = {
+    "GPIL.NS": [230, 276.75, "2026-04-02", "Metals"],
     "LLOYDSME.NS": [109, 1446.56, "2026-04-07", "Metals"],
-    "ADANIPOWER.NS": [1000, 163.36, "2026-04-07", "Energy"],
     "PREMIERENE.NS": [150, 943.30, "2026-04-07", "Infrastructure"],
     "NATCOPHARM.NS": [150, 1066.00, "2026-04-07", "Pharma"],
+    "ADANIPOWER.NS": [1000, 163.36, "2026-04-07", "Energy"],
     "ASHOKLEY.NS": [1400, 173.00, "2026-04-09", "Auto"],
-    "AUROPHARMA.NS": [70, 1350.00, "2026-04-10", "Pharma"],
-    "SAMMAANCAP.NS": [922, 154.89, "2026-04-13", "Finance"]
+    "SAMMAANCAP.NS": [922, 154.89, "2026-04-13", "Finance"],
+    "ORIENTELEC.NS": [600, 184.00, "2026-04-21", "Consumer Durables"],
+    "AARTIIND.NS": [200, 455.00, "2026-04-22", "Chemicals"],
+    "SKYGOLD.NS": [218, 417.00, "2026-04-22", "Consumer Jewelry"]
+}
+
 }
 
 def send_msg(text):
