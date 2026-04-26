@@ -1,9 +1,8 @@
 import yfinance as yf
 import pandas as pd
-import numpy as np
-import http.client, json, os
+import os, json, http.client
 
-# 1. HOLDINGS (Top level so News Bot can see it)
+# 1. HOLDINGS (Top-level for News Bot access)
 MY_HOLDINGS = {
     "CHENNPETRO.NS": [200, 910.00, "2026-03-12", "Energy"],
     "ABB.NS": [30, 6320.00, "2026-03-18", "Capital Goods"],
@@ -19,24 +18,10 @@ MY_HOLDINGS = {
     "SAMMAANCAP.NS": [922, 154.89, "2026-04-13", "Finance"]
 }
 
-MY_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-MY_TOKEN = os.getenv('TELEGRAM_TOKEN')
-
-def send_msg(text):
-    conn = http.client.HTTPSConnection("api.telegram.org")
-    payload = json.dumps({"chat_id": MY_CHAT_ID, "text": text, "parse_mode": "Markdown"})
-    headers = {"Content-Type": "application/json"}
-    conn.request("POST", f"/bot{MY_TOKEN}/sendMessage", payload, headers)
-    conn.close()
-
-# 2. ANALYSIS LOGIC (Wrapped in a function)
 def run_advanced_guardian():
-    # ... (Your existing calculation code here) ...
-    # (Same code you used before for data, nifty, pnl_pct, atr, ratchet, etc.)
-    # ...
-    report = "🚀 *DYNAMIC PORTFOLIO REPORT*\n..." 
-    send_msg(report)
+    # ... (Your existing ATR/Ratchet code here) ...
+    # Ensure this function ends with send_msg(report)
+    pass
 
-# 3. THE GUARD (Crucial for the News Bot)
 if __name__ == "__main__":
     run_advanced_guardian()
