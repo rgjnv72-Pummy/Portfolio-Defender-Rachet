@@ -1,11 +1,14 @@
-name: Daily News Delivery
+name: Daily Stock News Delivery
 
 on:
   schedule:
-    # Set this 30 minutes after your Guardian report
-    # If Guardian is at 6:00 PM IST (12:30 UTC), set this to 13:00 UTC
-    - cron: '00 13 * * *'
-  workflow_dispatch:
+    # 12:30 UTC is 6:00 PM IST
+    - cron: '30 12 * * *'
+  workflow_dispatch: # This adds the "Run" button for testing
+
+# This fixes the Node.js 20 warning
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   run-news:
@@ -20,7 +23,9 @@ jobs:
           python-version: '3.10'
 
       - name: Install Dependencies
-        run: pip install yfinance requests
+        # This installs everything the news bot needs to run
+        run: |
+          pip install yfinance requests
 
       - name: Run News Bot
         env:
