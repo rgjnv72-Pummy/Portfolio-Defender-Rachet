@@ -17,69 +17,73 @@ def send_to_telegram(text):
     url = f"https://telegram.org{TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": text, "parse_mode": "Markdown", "disable_web_page_preview": True}
     try:
-        r = requests.post(url, json=payload, timeout=10)
-        print(f"Telegram response: {r.status_code}")
-    except Exception as e:
-        print(f"Telegram failed: {e}")
+        requests.post(url, json=payload, timeout=15)
+    except: pass
 
 def get_google_news(ticker):
-    """Robust backup using simple string splitting"""
+    """Reliable headline fetcher using string markers"""
     news_items = []
     try:
-        query = ticker.replace('.NS', '')
-        # Different Google News RSS URL
-        url = f"https://google.com{query}+share+price&hl=en-IN&gl=IN&ceid=IN:en"
-        response = requests.get(url, timeout=15)
+        name = ticker.replace('.NS', '')
+        url = f"https://google.com{name}+share+price&hl=en-IN&gl=IN&ceid=IN:en"
+        response = requests.get(url, timeout=10)
+        text = response.text
         
-        # Split by <item> tags to get individual stories
-        parts = response.text.split('<item>')[1:4] 
-        for part in parts:
-            title = part.split('<title>')[1].split('</title>')[0]
-            link = part.split('<link>')[1].split('</link>')[0]
-            # Clean up the title (Google adds " - Source" at the end)
-            clean_title = title.split(' - ')[0].replace('[', '').replace(']', '')
-            news_items.append({'title': clean_title, 'link': link})
+        # Look for the first 3 items manually
+        items = text.split('<item>')
+        for i in range(1, min(len(items), 4)):
+            # Grab Title
+            t_start = items[i].find('<title>') + 7
+            t_end = items[i].find('</title>')
+            title = items[i][t_start:t_end].split(' - ')[0] # Remove source name
+            
+            # Grab Link
+            l_start = items[i].find('<link>') + 6
+            l_end = items[i].find('</link>')
+            link = items[i][l_start:l_end]
+            
+            if title and link:
+                news_items.append({'title': title, 'link': link})
     except: pass
     return news_items
 
 def deliver_news():
-    header = f"🗞️ *HOLDINGS NEWS UPDATE*\n_{datetime.now().strftime('%d %b %Y, %I:%M %p')}_\n"
-    header += "—" * 15 + "\n"
+    # 1. MARKET SUMMARY SECTION
+    try:
+        nifty = yf.Ticker("^NSEI")
+        n_history = nifty.history(period="2d")
+        n_close = n_history['Close'].iloc[-1]
+        n_prev = n_history['Close'].iloc[-2]
+        n_chg = ((n_close - n_prev) / n_prev) * 100
+        n_icon = "📈" if n_chg > 0 else "📉"
+        
+        report = f"🏛️ *MARKET SUMMARY*\nNifty 50: {n_close:,.2f} ({n_chg:+.2f}%) {n_icon}\n"
+    except:
+        report = "🏛️ *MARKET SUMMARY*\nNifty data temporarily unavailable.\n"
+
+    report += f"📅 _{datetime.now().strftime('%d %b %Y, %I:%M %p')}_\n"
+    report += "—" * 15 + "\n\n🗞️ *HOLDINGS NEWS*\n"
     
-    current_message = header
-    stocks_with_news = 0
-    
+    stocks_found = 0
     for ticker in MY_HOLDINGS:
         name = ticker.replace('.NS', '')
-        # Try Yahoo first
-        try:
-            stock = yf.Ticker(ticker)
-            news_list = stock.news[:3]
-        except: news_list = []
+        news = get_google_news(ticker)
+        
+        if news:
+            stocks_found += 1
+            report += f"\n🔹 *{name}*\n"
+            for i, item in enumerate(news, 1):
+                report += f"{i}. [{item['title']}]({item['link']})\n"
+        
+        # Prevent message from getting too long for Telegram
+        if len(report) > 3500:
+            send_to_telegram(report)
+            report = "🗞️ *CONTINUED...*\n"
 
-        # Use Google if Yahoo is empty
-        if not news_list:
-            news_list = get_google_news(ticker)
-            
-        if news_list:
-            stocks_with_news += 1
-            ticker_block = f"\n🔹 *{name}*\n"
-            for i, article in enumerate(news_list, 1):
-                title = article.get('title', 'Headline')
-                link = article.get('link', '#')
-                ticker_block += f"{i}. [{title}]({link})\n"
-            
-            if len(current_message) + len(ticker_block) > 4000:
-                send_to_telegram(current_message)
-                current_message = ticker_block
-            else:
-                current_message += ticker_block
+    if stocks_found == 0:
+        report += "\nNo specific headlines found for your holdings in the last 24h."
 
-    # FINAL CHECK: If no news found at all, tell the user!
-    if stocks_with_news == 0:
-        current_message += "\n☕ No new headlines found for your holdings in the last 24 hours."
-
-    send_to_telegram(current_message)
+    send_to_telegram(report)
 
 if __name__ == "__main__":
     deliver_news()
