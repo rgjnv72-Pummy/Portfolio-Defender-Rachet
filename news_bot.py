@@ -2,12 +2,12 @@ import yfinance as yf
 import requests
 import os
 from datetime import datetime
+import time
 
 # --- AUTH ---
-TOKEN = os.environ.get("TELEGRAM_TOKEN")
-CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+TOKEN = str(os.environ.get("TELEGRAM_TOKEN")).strip()
+CHAT_ID = str(os.environ.get("TELEGRAM_CHAT_ID")).strip()
 
-# --- TICKERS ---
 TICKERS = [
     "CHENNPETRO.NS", "ABB.NS", "GPIL.NS", "TATAPOWER.NS", "ONGC.NS", 
     "LLOYDSME.NS", "ADANIPOWER.NS", "PREMIERENE.NS", "NATCOPHARM.NS", 
@@ -15,19 +15,18 @@ TICKERS = [
 ]
 
 def send_to_telegram(text):
-    if not TOKEN or not CHAT_ID:
-        print("❌ Secrets Missing!")
+    if not TOKEN or "None" in TOKEN:
+        print("❌ TOKEN IS MISSING")
         return
     
-    # 🌟 FIXED URL CONSTRUCTION
-    url = f"https://telegram.org{TOKEN}/sendMessage"
+    # Basic URL structure to prevent parsing errors
+    base_url = "https://telegram.org" + TOKEN + "/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": text, "parse_mode": "Markdown", "disable_web_page_preview": True}
     
     try:
-        response = requests.post(url, json=payload, timeout=15)
+        response = requests.post(base_url, json=payload, timeout=20)
         print(f"Telegram Status: {response.status_code}")
-        if response.status_code != 200:
-            print(f"Response Error: {response.text}")
+        print(f"Telegram Raw Response: {response.text}")
     except Exception as e:
         print(f"❌ Network Error: {e}")
 
@@ -48,10 +47,10 @@ def get_sentiment():
                 f"• India VIX: {vix:.2f} ({v_warn})\n"
                 f"• Bias: *{'Bearish' if vix > 19 else 'Cautious'}*\n")
     except:
-        return "🌍 *MARKET ENVIRONMENT*: Service busy.\n"
+        return "🌍 *MARKET ENVIRONMENT*: Data busy.\n"
 
 def deliver_news():
-    print("🚀 Bot Started...")
+    print("🚀 Starting news fetch...")
     
     report = f"📊 *EVENING SUMMARY* - {datetime.now().strftime('%d %b %Y')}\n"
     report += "—" * 15 + "\n"
@@ -62,19 +61,21 @@ def deliver_news():
     for symbol in TICKERS:
         try:
             stock = yf.Ticker(symbol)
-            news = stock.news[:2] # Top 2 for speed
+            news = stock.news[:2] 
             if news:
                 found_news = True
-                report += f"\n🔹 *{symbol.replace('.NS', '')}*\n"
+                name = symbol.replace('.NS', '')
+                report += f"\n🔹 *{name}*\n"
                 for i, art in enumerate(news, 1):
                     report += f"{i}. [{art['title']}]({art['link']})\n"
+            # Sleep briefly to avoid "database is locked" error
+            time.sleep(1)
         except: continue
 
     if not found_news:
         report += "_No news found for holdings today._"
 
     send_to_telegram(report)
-    print("✅ Delivery Attempted.")
 
 if __name__ == "__main__":
     deliver_news()
