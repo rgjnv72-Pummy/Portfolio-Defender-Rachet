@@ -50,8 +50,9 @@ def run_analysis(tickers):
     return sorted(results, key=lambda x: x['C'], reverse=True)
 
 def send_telegram_text(results):
-    token = os.getenv('TELEGRAM_TOKEN', '').strip()
-    chat_id = os.getenv('TELEGRAM_CHAT_ID', '').strip()
+    # Fetch secrets and clean them
+    token = str(os.getenv('TELEGRAM_TOKEN', '')).strip()
+    chat_id = str(os.getenv('TELEGRAM_CHAT_ID', '')).strip()
     
     print(f"📡 Secret Check -> Token Len: {len(token)}, ChatID: {chat_id}")
 
@@ -59,27 +60,34 @@ def send_telegram_text(results):
         print("❌ CRITICAL: Secrets missing.")
         return
 
-    msg = "🤖 **Kronos Weekly Top 10**\n"
+    # Build plain text message
+    msg = "🤖 KRONOS WEEKLY TOP 10\n"
     msg += "-------------------------------\n"
-    msg += "`Ticker      Price    Conf%  Target`\n"
     for item in results[:10]:
         indicator = "🔥" if item['C'] > 75 else "📈"
-        msg += f"`{item['T']:<11} {item['P']:<8} {item['C']:>4}%` → **{item['Tr']}** {indicator}\n"
+        msg += f"{item['T']}: {item['P']} | {item['C']}% | Target: {item['Tr']} {indicator}\n"
     msg += "-------------------------------\n"
-    msg += "📅 *Selection: Top Weekly Gainers*"
+    msg += "Selection: Top Weekly Gainers"
 
-    # --- THE CRITICAL URL FIX ---
-    url = f"https://telegram.org{token}/sendMessage"
+    # --- FAIL-SAFE URL CONSTRUCTION ---
+    # We split the URL to ensure the token is inserted correctly
+    base = "https://telegram.org"
+    endpoint = "/sendMessage"
+    full_url = base + token + endpoint
     
     try:
-        r = requests.post(url, json={'chat_id': chat_id, 'text': msg, 'parse_mode': 'Markdown'}, timeout=20)
+        r = requests.post(
+            full_url, 
+            json={'chat_id': chat_id, 'text': msg}, 
+            timeout=25
+        )
         print(f"📊 Telegram Status: {r.status_code}")
         if r.status_code == 200:
             print("✅ MESSAGE SENT SUCCESSFULLY!")
         else:
             print(f"❌ Detail: {r.text}")
     except Exception as e:
-        print(f"❌ Request Error: {e}")
+        print(f"❌ Connection Error: {e}")
 
 if __name__ == "__main__":
     df_nse = get_local_nse_list()
