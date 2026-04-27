@@ -1,0 +1,28 @@
+name: NSE 500 Weekly Scanner
+on:
+  schedule:
+    - cron: '30 10 * * 5' # Runs every Friday at 4:00 PM IST
+  workflow_dispatch:      # Manual trigger button
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install pandas yfinance requests
+          # Add any extra libs your techno-funda code needs
+
+      - name: Run NSE Analysis
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: python your_script_name.py
