@@ -1,27 +1,27 @@
-name: NSE Weekly Whale Scanner
+name: NSE Weekly Whale & Kronos Scanner
+
 on:
   schedule:
-    - cron: '30 10 * * 5' # Runs every Friday at 4:00 PM IST
-  workflow_dispatch:      # Allows manual trigger
+    - cron: '30 10 * * 5' # Runs Every Friday at 4:00 PM IST
+  workflow_dispatch:      # Allows you to click "Run" manually anytime
 
 jobs:
-  analyze:
+  weekly_scan:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
+      - name: Install Analysis Tools
         run: |
-          pip install pandas yfinance requests openpyxl
-          # Add any libraries needed for Kronos Forecast
+          pip install pandas yfinance requests openpyxl matplotlib numpy
 
-      - name: Execute Whale Scan
+      - name: Run Whale & Kronos Logic
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
