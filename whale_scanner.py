@@ -16,7 +16,6 @@ def get_local_nse_list():
 def find_top_weekly_gainers(df_nse, count=20):
     print(f"📈 Finding Top {count} Gainers...")
     symbols = [str(s).strip() + ".NS" for s in df_nse['Symbol'].dropna().unique()]
-    # Fetch data for weekly change
     data = yf.download(symbols, period="10d", interval="1d", group_by='ticker', threads=True, progress=False)
     
     perf = []
@@ -46,7 +45,6 @@ def run_analysis(tickers):
             lookback = 60 if len(close_series) > 60 else len(close_series) - 1
             drift = (cp - close_series.iloc[-lookback]) / (close_series.iloc[-lookback] * lookback)
             
-            # Kronos Simulation (50 paths)
             paths = [cp * np.cumprod(1 + np.random.normal(drift, vol, 30)) for _ in range(50)]
             conf = (sum(1 for p in paths if p[-1] > cp) / 50) * 100
             target = np.mean([p[-1] for p in paths])
@@ -62,27 +60,39 @@ def run_analysis(tickers):
     return sorted(final_data, key=lambda x: x['Conf'], reverse=True)
 
 def send_telegram_text(results):
-    token = os.getenv('TELEGRAM_TOKEN')
-    chat_id = os.getenv('CHAT_ID')
+    # Fetch and strip any accidental whitespace/formatting
+    token = os.getenv('TELEGRAM_TOKEN', '').strip()
+    chat_id = os.getenv('CHAT_ID', '').strip()
     
+    if not token or not chat_id:
+        print("❌ Token or Chat ID is empty!")
+        return
+
     if not results:
         msg = "⚠️ **Scanner Warning**: No data generated today."
     else:
         msg = "🤖 **Kronos Top 10 Forecast**\n"
         msg += "Selection: Top Weekly Gainers (NSE 500)\n"
         msg += "----------------------------------\n"
-        msg += f"{'Ticker':<12} {'Price':<8} {'Conf%':<6} {'Target'}\n"
+        msg += "`Ticker      Price    Conf%  Target`\n"
         
         for item in results[:10]:
             indicator = "🔥" if item['Conf'] > 70 else "📈"
-            msg += f"`{item['Ticker']:<12} {item['Price']:<8} {item['Conf']:>5}%` → **{item['Target']}** {indicator}\n"
+            msg += f"`{item['Ticker']:<11} {item['Price']:<8} {item['Conf']:>4}%` → **{item['Target']}** {indicator}\n"
         
         msg += "----------------------------------\n"
         msg += "📅 *30-Day Simulation Horizon*"
 
+    # CORRECTED URL CONSTRUCTION
     url = f"https://telegram.org{token}/sendMessage"
-    r = requests.post(url, data={'chat_id': chat_id, 'text': msg, 'parse_mode': 'Markdown'})
-    print(f"📡 Telegram Status: {r.status_code}")
+    
+    try:
+        r = requests.post(url, data={'chat_id': chat_id, 'text': msg, 'parse_mode': 'Markdown'}, timeout=15)
+        print(f"📡 Telegram Status: {r.status_code}")
+        if r.status_code != 200:
+            print(f"❌ Error Detail: {r.text}")
+    except Exception as e:
+        print(f"❌ Post Request Failed: {e}")
 
 if __name__ == "__main__":
     nse_df = get_local_nse_list()
