@@ -20,11 +20,11 @@ def find_top_weekly_gainers(df_nse, count=20):
     print(f"📈 Scanning NSE 500 for Top {count} Weekly Gainers...")
     symbols = [str(s).strip() + ".NS" for s in df_nse['Symbol'].dropna().unique()]
     
-    # Download 7 days of data to ensure we have a full trading week
+    # Download 7 days of data to ensure a full trading week
     data = yf.download(symbols, period="7d", interval="1d", progress=False)
     
     perf = []
-    # Handle yfinance multi-index data structure
+    # yfinance version-proof column handling
     close_data = data['Close'] if 'Close' in data else data
     
     for ticker in symbols:
@@ -33,7 +33,7 @@ def find_top_weekly_gainers(df_nse, count=20):
                 h = close_data[ticker].dropna()
                 if len(h) < 3: continue
                 
-                # Performance calculation
+                # (Latest Price - Price 5 sessions ago) / Price 5 sessions ago
                 start_p = h.iloc[0]
                 end_p = h.iloc[-1]
                 change = ((end_p - start_p) / start_p) * 100
@@ -55,7 +55,7 @@ def run_analysis(tickers):
             df = yf.download(ticker, period="1y", progress=False)
             if df.empty: continue
             
-            # Squeeze to handle single-column dataframes
+            # Handle potential multi-index or single column DF
             close = df['Close'].iloc[:, 0] if len(df['Close'].shape) > 1 else df['Close']
             close = close.dropna()
             
@@ -80,12 +80,10 @@ def run_analysis(tickers):
             })
         except: continue
 
-    # Sort results by highest confidence probability
     return sorted(results, key=lambda x: x['C'], reverse=True)
 
 def send_telegram_text(results):
-    """Sends the analysis report to Telegram using Guardian credentials."""
-    # EXACT names from your working guardian.py workflow
+    """Sends the analysis report to Telegram using the fixed API URL."""
     token = os.getenv('TELEGRAM_TOKEN', '').strip()
     chat_id = os.getenv('TELEGRAM_CHAT_ID', '').strip()
     
@@ -95,41 +93,36 @@ def send_telegram_text(results):
         print("❌ CRITICAL: Secrets not received. Ensure YML uses TELEGRAM_CHAT_ID.")
         return
 
-    # Build formatted message
     msg = "🤖 **Kronos Weekly Top 10**\n"
-    msg += "`-------------------------------` \n"
+    msg += "-------------------------------\n"
     msg += "`Ticker      Price    Conf%  Target`\n"
     
     for item in results[:10]:
         indicator = "🔥" if item['C'] > 75 else "📈"
         msg += f"`{item['T']:<11} {item['P']:<8} {item['C']:>4}%` → **{item['Tr']}** {indicator}\n"
     
-    msg += "`-------------------------------` \n"
+    msg += "-------------------------------\n"
     msg += "📅 *Selection: Top Weekly Gainers (NSE 500)*"
 
+    # HARDCODED CORRECT API URL
     url = f"https://telegram.org{token}/sendMessage"
     
     try:
         r = requests.post(url, json={'chat_id': chat_id, 'text': msg, 'parse_mode': 'Markdown'}, timeout=20)
         print(f"📊 Telegram Status: {r.status_code}")
-        if r.status_code != 200:
+        if r.status_code == 200:
+            print("✅ MESSAGE SENT SUCCESSFULLY!")
+        else:
             print(f"❌ Error Detail: {r.text}")
     except Exception as e:
         print(f"❌ Connection Error: {e}")
 
 if __name__ == "__main__":
-    # 1. Load List
     nse_data = get_local_nse_list()
-    
     if nse_data is not None:
-        # 2. Filter Top 20 Gainers
         top_list = find_top_weekly_gainers(nse_data)
-        
         if top_list:
-            # 3. Analyze with Kronos
             final_res = run_analysis(top_list)
-            
-            # 4. Report to Telegram
             send_telegram_text(final_res)
         else:
             print("⚠️ No valid gainers found to analyze.")
