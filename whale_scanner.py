@@ -60,43 +60,42 @@ def run_analysis(tickers):
     return sorted(final_data, key=lambda x: x['Conf'], reverse=True)
 
 def send_telegram_text(results):
-    # Fetch and strip any accidental whitespace/formatting
     token = os.getenv('TELEGRAM_TOKEN', '').strip()
     chat_id = os.getenv('CHAT_ID', '').strip()
     
     if not token or not chat_id:
-        print("❌ Token or Chat ID is empty!")
+        print("❌ CRITICAL: Token or Chat ID is empty in Secrets!")
         return
 
-    if not results:
-        msg = "⚠️ **Scanner Warning**: No data generated today."
-    else:
-        msg = "🤖 **Kronos Top 10 Forecast**\n"
-        msg += "Selection: Top Weekly Gainers (NSE 500)\n"
-        msg += "----------------------------------\n"
-        msg += "`Ticker      Price    Conf%  Target`\n"
-        
-        for item in results[:10]:
-            indicator = "🔥" if item['Conf'] > 70 else "📈"
-            msg += f"`{item['Ticker']:<11} {item['Price']:<8} {item['Conf']:>4}%` → **{item['Target']}** {indicator}\n"
-        
-        msg += "----------------------------------\n"
-        msg += "📅 *30-Day Simulation Horizon*"
-
-    # CORRECTED URL CONSTRUCTION
-    url = f"https://telegram.org{token}/sendMessage"
+    msg = "🤖 **Kronos Top 10 Forecast**\n"
+    msg += "----------------------------------\n"
+    msg += "`Ticker      Price    Conf%  Target`\n"
     
+    for item in results[:10]:
+        indicator = "🔥" if item['Conf'] > 70 else "📈"
+        msg += f"`{item['Ticker']:<11} {item['Price']:<8} {item['Conf']:>4}%` → **{item['Target']}** {indicator}\n"
+    
+    msg += "----------------------------------\n"
+    msg += "📅 *30-Day Simulation Horizon*"
+
+    # Fixed URL Format
+    base_url = f"https://telegram.org{token}/sendMessage"
+    
+    print(f"📡 Sending message to Chat ID: {chat_id}")
     try:
-        r = requests.post(url, data={'chat_id': chat_id, 'text': msg, 'parse_mode': 'Markdown'}, timeout=15)
-        print(f"📡 Telegram Status: {r.status_code}")
+        r = requests.post(base_url, json={'chat_id': chat_id, 'text': msg, 'parse_mode': 'Markdown'}, timeout=20)
+        print(f"📊 Response Code: {r.status_code}")
         if r.status_code != 200:
-            print(f"❌ Error Detail: {r.text}")
+            print(f"❌ Telegram Error: {r.text}")
     except Exception as e:
-        print(f"❌ Post Request Failed: {e}")
+        print(f"❌ Connection Failed: {e}")
 
 if __name__ == "__main__":
     nse_df = get_local_nse_list()
     if nse_df is not None:
         top_20 = find_top_weekly_gainers(nse_df)
         final_results = run_analysis(top_20)
-        send_telegram_text(final_results)
+        if final_results:
+            send_telegram_text(final_results)
+        else:
+            print("⚠️ No analysis results to send.")
