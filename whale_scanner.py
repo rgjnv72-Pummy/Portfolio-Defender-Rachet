@@ -22,7 +22,6 @@ def get_local_nse_list():
 def find_top_weekly_gainers(df_nse, count=20):
     print(f"📈 Finding Top {count} Gainers...")
     symbols = [str(s).strip() + ".NS" for s in df_nse['Symbol'].dropna().unique()]
-    # Download data
     data = yf.download(symbols, period="10d", interval="1d", group_by='ticker', threads=True, progress=False)
     
     perf = []
@@ -39,7 +38,7 @@ def run_analysis(tickers):
     print("🚀 Analyzing & Simulating...")
     final_data = []
     plt.style.use('dark_background')
-    fig, axes = plt.subplots(5, 1, figsize=(10, 25))
+    fig, axes = plt.subplots(5, 1, figsize=(8, 15)) # Smaller figure
     
     for i, ticker in enumerate(tickers):
         try:
@@ -47,54 +46,43 @@ def run_analysis(tickers):
             if df.empty: continue
             
             cp = float(df['Close'].iloc[-1])
-            # Simple V4 Scoring
-            score = 5 if cp > df['Close'].ewm(span=200).mean().iloc[-1] else 0
-            
-            # Kronos (50 paths)
             rets = df['Close'].pct_change().dropna()
             vol, drift = rets.std(), (cp - df['Close'].iloc[-60]) / (df['Close'].iloc[-60] * 60)
             
-            paths = [cp * np.cumprod(1 + np.random.normal(drift, vol, 30)) for _ in range(50)]
-            conf = (sum(1 for p in paths if p[-1] > cp) / 50) * 100
+            paths = [cp * np.cumprod(1 + np.random.normal(drift, vol, 30)) for _ in range(30)] # Fewer paths
+            conf = (sum(1 for p in paths if p[-1] > cp) / 30) * 100
             
-            final_data.append({'Ticker': ticker, 'Score': score, 'Conf%': conf, 'Price': round(cp, 1)})
+            final_data.append({'Ticker': ticker, 'Conf%': round(conf, 1), 'Price': round(cp, 1)})
 
             if i < 5:
                 ax = axes[i]
-                ax.plot(df['Close'].values[-60:], color='#00ffcc')
-                for p in paths[:5]: ax.plot(np.arange(60, 90), p, color='yellow', alpha=0.2)
+                ax.plot(df['Close'].values[-50:], color='#00ffcc')
+                for p in paths[:5]: ax.plot(np.arange(50, 80), p, color='yellow', alpha=0.2)
                 ax.set_title(f"{ticker} ({conf}%)")
         except: continue
 
     plt.tight_layout()
-    plt.savefig(FORECAST_PLOT)
+    plt.savefig(FORECAST_PLOT, dpi=80) # Lower DPI for faster upload
     return pd.DataFrame(final_data)
 
 def send_to_telegram(excel, plot):
     token = os.getenv('TELEGRAM_TOKEN')
     chat_id = os.getenv('CHAT_ID')
     
-    if not token or not chat_id:
-        print("❌ Telegram Secrets Missing!")
-        return
+    # 1. Immediate Heartbeat Text
+    requests.post(f"https://telegram.org{token}/sendMessage", 
+                  data={'chat_id': chat_id, 'text': "✅ **Whale Scan Complete.** Uploading files...", 'parse_mode': 'Markdown'})
 
-    # Helper to send files with retry/error log
     def upload(method, files, caption):
         url = f"https://telegram.org{token}/{method}"
-        try:
-            r = requests.post(url, data={'chat_id': chat_id, 'caption': caption, 'parse_mode': 'Markdown'}, files=files, timeout=30)
-            if r.status_code == 200:
-                print(f"✅ Sent {method} successfully.")
-            else:
-                print(f"❌ Telegram Error ({r.status_code}): {r.text}")
-        except Exception as e:
-            print(f"❌ Request Failed: {e}")
+        r = requests.post(url, data={'chat_id': chat_id, 'caption': caption}, files=files, timeout=60)
+        print(f"📡 Telegram Response ({method}): {r.status_code} - {r.text}")
 
     if os.path.exists(plot):
-        with open(plot, "rb") as p: upload("sendPhoto", {'photo': p}, "🔥 **Kronos Top 5 Forecast**")
+        with open(plot, "rb") as p: upload("sendPhoto", {'photo': p}, "🔥 Kronos Top 5")
     
     if os.path.exists(excel):
-        with open(excel, "rb") as e: upload("sendDocument", {'document': e}, "📊 **Whale Scan Results**")
+        with open(excel, "rb") as e: upload("sendDocument", {'document': e}, "📊 Full Report")
 
 if __name__ == "__main__":
     nse_df = get_local_nse_list()
