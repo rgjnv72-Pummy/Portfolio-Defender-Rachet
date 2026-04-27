@@ -9,15 +9,13 @@ CSV_FILE = 'ind_nifty500list.csv'
 
 def get_local_nse_list():
     if os.path.exists(CSV_FILE):
-        print(f"✅ Found {CSV_FILE}")
         return pd.read_csv(CSV_FILE, skipinitialspace=True)
     return None
 
 def find_top_weekly_gainers(df_nse, count=20):
-    print(f"📈 Scanning NSE 500 for Top {count} Weekly Gainers...")
+    print("📈 Scanning NSE 500...")
     symbols = [str(s).strip() + ".NS" for s in df_nse['Symbol'].dropna().unique()]
     data = yf.download(symbols, period="7d", interval="1d", progress=False)
-    
     perf = []
     close_data = data['Close'] if 'Close' in data else data
     for ticker in symbols:
@@ -50,44 +48,32 @@ def run_analysis(tickers):
     return sorted(results, key=lambda x: x['C'], reverse=True)
 
 def send_telegram_text(results):
-    # Fetch secrets and clean them
-    token = str(os.getenv('TELEGRAM_TOKEN', '')).strip()
-    chat_id = str(os.getenv('TELEGRAM_CHAT_ID', '')).strip()
+    token = os.getenv('TELEGRAM_TOKEN', '').strip()
+    chat_id = os.getenv('TELEGRAM_CHAT_ID', '').strip()
     
     print(f"📡 Secret Check -> Token Len: {len(token)}, ChatID: {chat_id}")
 
     if not token or not chat_id:
-        print("❌ CRITICAL: Secrets missing.")
+        print("❌ ERROR: Secrets missing.")
         return
 
-    # Build plain text message
     msg = "🤖 KRONOS WEEKLY TOP 10\n"
-    msg += "-------------------------------\n"
     for item in results[:10]:
-        indicator = "🔥" if item['C'] > 75 else "📈"
-        msg += f"{item['T']}: {item['P']} | {item['C']}% | Target: {item['Tr']} {indicator}\n"
-    msg += "-------------------------------\n"
-    msg += "Selection: Top Weekly Gainers"
+        msg += f"{item['T']}: {item['P']} | Conf {item['C']}% | Target {item['Tr']}\n"
 
-    # --- FAIL-SAFE URL CONSTRUCTION ---
-    # We split the URL to ensure the token is inserted correctly
-    base = "https://telegram.org"
-    endpoint = "/sendMessage"
-    full_url = base + token + endpoint
+    # ATTEMPTING DIRECT URL STRING CONCATENATION
+    # If this fails with telegram.org error, your SECRET is incorrect.
+    url = "https://telegram.org" + token + "/sendMessage"
     
     try:
-        r = requests.post(
-            full_url, 
-            json={'chat_id': chat_id, 'text': msg}, 
-            timeout=25
-        )
-        print(f"📊 Telegram Status: {r.status_code}")
+        r = requests.post(url, json={'chat_id': chat_id, 'text': msg}, timeout=25)
+        print(f"📊 Status: {r.status_code}")
         if r.status_code == 200:
-            print("✅ MESSAGE SENT SUCCESSFULLY!")
+            print("✅ SUCCESS!")
         else:
             print(f"❌ Detail: {r.text}")
     except Exception as e:
-        print(f"❌ Connection Error: {e}")
+        print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
     df_nse = get_local_nse_list()
