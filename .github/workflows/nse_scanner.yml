@@ -1,28 +1,28 @@
-name: NSE 500 Weekly Scanner
+name: NSE Weekly Whale Scanner
 on:
   schedule:
     - cron: '30 10 * * 5' # Runs every Friday at 4:00 PM IST
-  workflow_dispatch:      # Manual trigger button
+  workflow_dispatch:      # Allows manual trigger
 
 jobs:
-  build:
+  analyze:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
-          pip install pandas yfinance requests
-          # Add any extra libs your techno-funda code needs
+          pip install pandas yfinance requests openpyxl
+          # Add any libraries needed for Kronos Forecast
 
-      - name: Run NSE Analysis
+      - name: Execute Whale Scan
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
-        run: python your_script_name.py
+        run: python whale_scanner.py
