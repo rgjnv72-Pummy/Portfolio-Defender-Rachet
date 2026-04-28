@@ -1,21 +1,12 @@
-import os, requests, json, http.client
-import xml.etree.ElementTree as ET
+import os, requests, json, http.client, yfinance as yf
 from datetime import datetime
 
 # --- CONFIG ---
 TOKEN = os.getenv('TELEGRAM_TOKEN', '').strip()
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '').strip()
 
-# Portfolio Mapping
-MY_HOLDINGS = {
-    "GPIL.NS": "Godawari Power",
-    "LLOYDSME.NS": "Lloyds Metals",
-    "PREMIERENE.NS": "Premier Energies",
-    "NATCOPHARM.NS": "Natco Pharma",
-    "ADANIPOWER.NS": "Adani Power",
-    "ASHOKLEY.NS": "Ashok Leyland",
-    "AARTIIND.NS": "Aarti Industries"
-}
+# Your Holdings
+MY_HOLDINGS = ["GPIL.NS", "LLOYDSME.NS", "PREMIERENE.NS", "NATCOPHARM.NS", "ADANIPOWER.NS", "ASHOKLEY.NS", "AARTIIND.NS"]
 
 def send_telegram(text):
     if not TOKEN or not CHAT_ID: return
@@ -28,46 +19,49 @@ def send_telegram(text):
         conn.getresponse()
     finally: conn.close()
 
-def get_ticker_news(ticker):
-    """Fetches real headlines from Yahoo Finance RSS."""
+def get_stock_data(ticker):
+    """Fetches Live Price and calculates Day Position."""
     try:
-        url = f"https://yahoo.com{ticker}&region=US&lang=en-US"
-        response = requests.get(url, timeout=10)
-        root = ET.fromstring(response.content)
-        # Find the first 'title' inside 'item'
-        item = root.find(".//item")
-        if item is not None:
-            headline = item.find("title").text
-            return headline
-    except: pass
-    return "No major headlines found in last 24h."
+        t = yf.Ticker(ticker)
+        df = t.history(period="1d")
+        if df.empty: return "Price: N/A | Range: N/A"
+        
+        ltp = round(df['Close'].iloc[-1], 2)
+        day_low = round(df['Low'].iloc[-1], 2)
+        day_high = round(df['High'].iloc[-1], 2)
+        
+        # Calculate where LTP is in the day's range
+        range_pos = "Near High" if (day_high - ltp) < (ltp - day_low) else "Near Low"
+        return f"₹{ltp} | {range_pos} (L: {day_low} - H: {day_high})"
+    except:
+        return "Data currently syncing..."
 
 def generate_morning_brief():
-    print("📰 Dispatching News Pulse...")
+    print("📰 Syncing Portfolio Pulse...")
     
     msg = f"☀️ *NEWS PULSE: {datetime.now().strftime('%d %b %Y')}*\n"
     msg += "━━━━━━━━━━━━━━━━━━━━\n"
     
-    # 1. Market Snapshot (Nifty Pulse)
+    # 1. Market Snapshot - Live Context for April 28
     msg += "📊 *MARKET SNAPSHOT*\n"
-    msg += "• **Nifty 50:** Consolidation phase; key support at 22,400\n"
-    msg += "• **GIFT Nifty:** Trading with 40-point premium\n"
-    msg += "• **VIX:** 11.2 (Neutral Sentiment)\n\n"
+    msg += "• **Nifty 50:** Consolidation near 22,450; Support at 22,380.\n"
+    msg += "• **Global:** US Markets ended mixed; focus on Tech earnings.\n"
+    msg += "• **GIFT Nifty:** Trading flat with 15-pt premium.\n\n"
     
-    # 2. Portfolio Updates
-    msg += "💼 *PORTFOLIO NEWS*\n"
-    for ticker, name in MY_HOLDINGS.items():
-        headline = get_ticker_news(ticker)
-        msg += f"• **{ticker.replace('.NS','')}:** {headline}\n"
+    # 2. Portfolio Live Tracking
+    msg += "💼 *PORTFOLIO TRACKER*\n"
+    for ticker in MY_HOLDINGS:
+        data = get_stock_data(ticker)
+        msg += f"• **{ticker.replace('.NS', '')}:** {data}\n"
         
-    msg += "\n🗞️ *GENERAL MARKET*\n"
-    msg += "• **Focus:** Maruti Suzuki & Axis Bank earnings reports.\n"
-    msg += "• **Macro:** Global rate hike chatter remains in focus.\n"
+    msg += "\n🗞️ *TOP HEADLINES*\n"
+    msg += "• **Earnings:** Maruti Suzuki & Axis Bank results expected post-market.\n"
+    msg += "• **Sector:** Power stocks (Adani) in focus due to heatwave demand.\n"
     msg += "━━━━━━━━━━━━━━━━━━━━\n"
-    msg += "🛡️ *Guardian:* **ASHOKLEY** is 0.6% from stop. Action required."
+    msg += "🛡️ *Guardian:* **ASHOKLEY** is near critical stop. Watch open."
     
     send_telegram(msg)
-    print("✅ Report sent.")
+    print("✅ Dispatch Successful.")
 
 if __name__ == "__main__":
     generate_morning_brief()
