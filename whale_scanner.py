@@ -47,14 +47,26 @@ def run_scan():
         print("❌ No NSE data found.")
         return
 
-    # 3. Process
+    # --- SMART COLUMN DETECTION ---
     df.columns = [str(c).strip().upper() for c in df.columns]
-    sym_col = next((c for c in df.columns if 'SYMBOL' in c), None)
     
+    # Map possible names to standard 'SYMBOL', 'CLOSE', and 'PREV_CLOSE'
+    sym_col = next((c for c in df.columns if 'SYMBOL' in c or 'TICKER' in c), None)
+    prc_col = next((c for c in df.columns if 'CLOSE' in c and 'PREV' not in c), None)
+    prev_col = next((c for c in df.columns if 'PREV' in c and 'CLOSE' in c), None)
+
+    if not sym_col or not prc_col or not prev_col:
+        print(f"❌ Column mismatch. Found: {df.columns.tolist()}")
+        return
+
+    # 3. Process
     df = df[df[sym_col].isin(n500_list)].copy()
-    df['pct'] = ((pd.to_numeric(df['CLOSE'], errors='coerce') - 
-                  pd.to_numeric(df['PREV_CLOSE'], errors='coerce')) / 
-                  pd.to_numeric(df['PREV_CLOSE'], errors='coerce')) * 100
+    
+    # Convert to numeric
+    close_prc = pd.to_numeric(df[prc_col], errors='coerce')
+    prev_prc = pd.to_numeric(df[prev_col], errors='coerce')
+    
+    df['pct'] = ((close_prc - prev_prc) / prev_prc) * 100
     
     top_10 = df.sort_values(by='pct', ascending=False).head(10)
 
@@ -62,9 +74,10 @@ def run_scan():
     msg = f"🏆 *V4.0 BREAKOUTS ({target_date})*\n━━━━━━━━━━━━━━━━━━━━\n"
     for i, (_, row) in enumerate(top_10.iterrows(), 1):
         msg += f"{i}. *{row[sym_col]}* | {row['pct']:.1f}%\n"
-    
+    msg += "━━━━━━━━━━━━━━━━━━━━\n🎯 *Focus:* NSE 500 Breakouts."
+
     send_telegram(msg)
-    print("✅ Success!")
+    print(f"✅ Success! Report sent for {target_date}")
 
 if __name__ == "__main__":
     run_scan()
