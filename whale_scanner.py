@@ -71,8 +71,19 @@ def run_scan():
     
     if df_latest is None: return
     df_latest.columns = [str(c).strip().upper() for c in df_latest.columns]
-    df_latest = df_latest[df_latest['SYMBOL'].isin(n500_list)].copy()
-    df_latest['pct'] = ((pd.to_numeric(df_latest['CLOSE'], errors='coerce') - pd.to_numeric(df_latest['PREV_CLOSE'], errors='coerce')) / pd.to_numeric(df_latest['PREV_CLOSE'], errors='coerce')) * 100
+    
+    # --- SMART COLUMN MAPPING ---
+    sym_col = next((c for c in df_latest.columns if 'SYMBOL' in c), 'SYMBOL')
+    prc_col = next((c for c in df_latest.columns if 'CLOSE' in c and 'PREV' not in c), 'CLOSE')
+    prev_col = next((c for c in df_latest.columns if 'PREV' in c), 'PREV_CLOSE')
+
+    df_latest = df_latest[df_latest[sym_col].isin(n500_list)].copy()
+    
+    # Calculate % Change safely
+    curr_p = pd.to_numeric(df_latest[prc_col], errors='coerce')
+    prev_p = pd.to_numeric(df_latest[prev_col], errors='coerce')
+    df_latest['pct'] = ((curr_p - prev_p) / prev_p) * 100
+    
     top_10 = df_latest.sort_values(by='pct', ascending=False).head(10)
 
     msg = f"🐋 *WHALE WEEKLY SCAN ({target_date})*\n━━━━━━━━━━━━━━━━━━━━\n"
@@ -80,7 +91,7 @@ def run_scan():
     tv_list = []
 
     for _, row in top_10.iterrows():
-        sym = row['SYMBOL']
+        sym = row[sym_col]
         d_avg, vol_x = get_historical_stats(sym)
         conf, upside = run_kronos(sym)
         tv_list.append(f"NSE:{sym}")
