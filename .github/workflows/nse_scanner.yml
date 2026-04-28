@@ -2,8 +2,8 @@ name: NSE Weekly Whale & Kronos Scanner
 
 on:
   schedule:
-    - cron: '30 10 * * 5'
-  workflow_dispatch:      
+    - cron: '30 10 * * 5' # Runs Every Friday at 4:00 PM IST
+  workflow_dispatch:      # Manual "Run" button in Actions tab
 
 jobs:
   weekly_scan:
@@ -19,9 +19,10 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install nselib pandas numpy requests openpyxl
+          python -m pip install --upgrade pip
+          pip install nselib pandas numpy requests yfinance
 
-      - name: Execute Whale Scanner
+      - name: Execute Whale Scanner & Kronos AI
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
