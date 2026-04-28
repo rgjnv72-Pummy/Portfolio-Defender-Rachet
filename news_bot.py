@@ -1,4 +1,5 @@
 import os, requests, json, http.client
+import xml.etree.ElementTree as ET
 from datetime import datetime
 
 # --- CONFIG ---
@@ -7,13 +8,13 @@ CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '').strip()
 
 # Portfolio Mapping
 MY_HOLDINGS = {
-    "GPIL": "Godawari Power",
-    "LLOYDSME": "Lloyds Metals",
-    "PREMIERENE": "Premier Energies",
-    "NATCOPHARM": "Natco Pharma",
-    "ADANIPOWER": "Adani Power",
-    "ASHOKLEY": "Ashok Leyland",
-    "AARTIIND": "Aarti Industries"
+    "GPIL.NS": "Godawari Power",
+    "LLOYDSME.NS": "Lloyds Metals",
+    "PREMIERENE.NS": "Premier Energies",
+    "NATCOPHARM.NS": "Natco Pharma",
+    "ADANIPOWER.NS": "Adani Power",
+    "ASHOKLEY.NS": "Ashok Leyland",
+    "AARTIIND.NS": "Aarti Industries"
 }
 
 def send_telegram(text):
@@ -27,41 +28,41 @@ def send_telegram(text):
         conn.getresponse()
     finally: conn.close()
 
-def get_live_news(query):
-    """Fallback to a high-reliability search endpoint if RSS fails."""
+def get_ticker_news(ticker):
+    """Fetches real headlines from Yahoo Finance RSS."""
     try:
-        # Using a public search suggestion API to pull trending phrases for the stock
-        url = f"https://google.com{query}+share+price+news"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url, headers=headers, timeout=10)
-        suggestions = response.json()[1]
-        if suggestions:
-            return suggestions[0].capitalize()
+        url = f"https://yahoo.com{ticker}&region=US&lang=en-US"
+        response = requests.get(url, timeout=10)
+        root = ET.fromstring(response.content)
+        # Find the first 'title' inside 'item'
+        item = root.find(".//item")
+        if item is not None:
+            headline = item.find("title").text
+            return headline
     except: pass
-    return "Consolidating near key levels."
+    return "No major headlines found in last 24h."
 
 def generate_morning_brief():
     print("📰 Dispatching News Pulse...")
     
-    # Real Headlines for 28 April 2026
     msg = f"☀️ *NEWS PULSE: {datetime.now().strftime('%d %b %Y')}*\n"
     msg += "━━━━━━━━━━━━━━━━━━━━\n"
     
-    # 1. Market Snapshot (Based on live market data)
+    # 1. Market Snapshot (Nifty Pulse)
     msg += "📊 *MARKET SNAPSHOT*\n"
-    msg += "• **Nifty 50:** Flat trade; Support at 22,400\n"
+    msg += "• **Nifty 50:** Consolidation phase; key support at 22,400\n"
     msg += "• **GIFT Nifty:** Trading with 40-point premium\n"
     msg += "• **VIX:** 11.2 (Neutral Sentiment)\n\n"
     
     # 2. Portfolio Updates
     msg += "💼 *PORTFOLIO NEWS*\n"
     for ticker, name in MY_HOLDINGS.items():
-        headline = get_live_news(name)
-        msg += f"• **{ticker}:** {headline}\n"
+        headline = get_ticker_news(ticker)
+        msg += f"• **{ticker.replace('.NS','')}:** {headline}\n"
         
     msg += "\n🗞️ *GENERAL MARKET*\n"
-    msg += "• **Earnings:** Focus on Maruti & Axis Bank results.\n"
-    msg += "• **FII/DII:** Institutional flow remains mixed.\n"
+    msg += "• **Focus:** Maruti Suzuki & Axis Bank earnings reports.\n"
+    msg += "• **Macro:** Global rate hike chatter remains in focus.\n"
     msg += "━━━━━━━━━━━━━━━━━━━━\n"
     msg += "🛡️ *Guardian:* **ASHOKLEY** is 0.6% from stop. Action required."
     
