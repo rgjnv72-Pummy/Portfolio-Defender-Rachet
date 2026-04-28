@@ -22,17 +22,16 @@ def send_telegram(text):
         conn.close()
 
 def run_scan():
-    # 1. LOAD MANUAL NIFTY 500 LIST
+    # 1. Load Manual Nifty 500
     if not os.path.exists(MANUAL_N500_CSV):
-        print(f"❌ Error: {MANUAL_N500_CSV} not found in repo.")
+        print(f"❌ Error: {MANUAL_N500_CSV} missing.")
         return
     
     n500_df = pd.read_csv(MANUAL_N500_CSV)
-    # Get symbols from your CSV (assuming column name is 'Symbol')
     n500_list = n500_df['Symbol'].dropna().unique().tolist()
-    print(f"✅ Loaded {len(n500_list)} stocks from manual Nifty 500 CSV.")
+    print(f"✅ Loaded {len(n500_list)} stocks from manual CSV.")
 
-    # 2. FETCH MARKET DATA
+    # 2. Fetch Price Data
     df = None
     target_date = ""
     for i in range(1, 8):
@@ -45,25 +44,22 @@ def run_scan():
         except: continue
 
     if df is None:
-        print("❌ Could not fetch NSE price data.")
+        print("❌ No NSE data found.")
         return
 
-    # 3. FILTER & SCORE
+    # 3. Process
     df.columns = [str(c).strip().upper() for c in df.columns]
     sym_col = next((c for c in df.columns if 'SYMBOL' in c), None)
     
-    # Filter based on your manual CSV list
     df = df[df[sym_col].isin(n500_list)].copy()
-
     df['pct'] = ((pd.to_numeric(df['CLOSE'], errors='coerce') - 
                   pd.to_numeric(df['PREV_CLOSE'], errors='coerce')) / 
                   pd.to_numeric(df['PREV_CLOSE'], errors='coerce')) * 100
     
     top_10 = df.sort_values(by='pct', ascending=False).head(10)
 
-    # 4. FORMAT MESSAGE
-    msg = f"🏆 *V4.0 BREAKOUTS ({target_date})*\n"
-    msg += f"📦 *Source:* Manual Nifty 500 List\n━━━━━━━━━━━━━━━━━━━━\n"
+    # 4. Message
+    msg = f"🏆 *V4.0 BREAKOUTS ({target_date})*\n━━━━━━━━━━━━━━━━━━━━\n"
     for i, (_, row) in enumerate(top_10.iterrows(), 1):
         msg += f"{i}. *{row[sym_col]}* | {row['pct']:.1f}%\n"
     
