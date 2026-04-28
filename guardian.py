@@ -23,16 +23,22 @@ MY_HOLDINGS = {
 }
 
 def send_msg(text):
-    if not MY_TOKEN or not MY_CHAT_ID:
+    # .strip() is CRITICAL here to remove hidden \n characters from GitHub Secrets
+    token = MY_TOKEN.strip() if MY_TOKEN else None
+    chat_id = MY_CHAT_ID.strip() if MY_CHAT_ID else None
+    
+    if not token or not chat_id:
         print("❌ Secrets Missing!")
         return
     try:
         conn = http.client.HTTPSConnection("api.telegram.org")
-        payload = json.dumps({"chat_id": MY_CHAT_ID, "text": text, "parse_mode": "Markdown"})
+        payload = json.dumps({"chat_id": chat_id, "text": text, "parse_mode": "Markdown"})
         headers = {"Content-Type": "application/json"}
-        conn.request("POST", f"/bot{MY_TOKEN}/sendMessage", payload, headers)
+        # Clean URL construction
+        url = f"/bot{token}/sendMessage"
+        conn.request("POST", url, payload, headers)
         res = conn.getresponse()
-        print(f"📡 Telegram Status: {res.status}")
+        print(f"📡 Telegram Status: {res.status} {res.reason}")
         conn.close()
     except Exception as e:
         print(f"❌ Telegram Failed: {e}")
@@ -41,14 +47,12 @@ def run_advanced_guardian():
     tickers = list(MY_HOLDINGS.keys()) + ["^NSEI"]
     print(f"🛡️ Guarding {len(MY_HOLDINGS)} stocks...")
     
-    # Download with auto_adjust to avoid Dividend/Split gaps
     data = yf.download(tickers, period="1y", interval="1d", progress=False, auto_adjust=True)
     
     if data.empty:
         print("❌ Error: No data downloaded.")
         return
 
-    # Handle Multi-Index structure
     try:
         nifty_close = data['Close']['^NSEI'].dropna()
         nifty_chg = ((nifty_close.iloc[-1] - nifty_close.iloc[-2]) / nifty_close.iloc[-2]) * 100
@@ -61,7 +65,7 @@ def run_advanced_guardian():
 
     for ticker, (qty, buy_p, buy_date, sector) in MY_HOLDINGS.items():
         try:
-            # Safe data extraction for the specific ticker
+            # Multi-Index safe extraction
             df = data.iloc[:, data.columns.get_level_values(1) == ticker].copy()
             df.columns = df.columns.get_level_values(0)
             df = df.dropna()
@@ -69,10 +73,9 @@ def run_advanced_guardian():
             if len(df) < 15: continue
             
             close_p, prev_p = df['Close'].iloc[-1], df['Close'].iloc[-2]
-            high_p = df['High'].iloc[-1]
             pnl_pct = ((close_p - buy_p) / buy_p) * 100
             
-            # Dynamic Multiplier logic
+            # Dynamic Multiplier
             std = df['Close'].pct_change().std()
             mult = 1.0 if pnl_pct > 30 else 1.5 if pnl_pct > 15 else (2.5 if std > 0.025 else 2.0)
             
@@ -84,7 +87,6 @@ def run_advanced_guardian():
             valid_df = df[df.index >= buy_date].copy()
             if valid_df.empty: valid_df = df.iloc[-5:]
             
-            # Align ATR with valid_df
             ratchet_series = (valid_df['High'] - (mult * atr.reindex(valid_df.index))).cummax()
             ratchet = ratchet_series.iloc[-1]
             
@@ -111,12 +113,10 @@ def run_advanced_guardian():
     sorted_results = sorted(results, key=lambda x: x['is_cut'], reverse=True)
     for res in sorted_results: report += res['text']
 
-    # Sector Breakdown
     report += "🏗️ *SECTOR EXPOSURE*\n"
     for sec, val in sorted(sector_values.items(), key=lambda item: item[1], reverse=True):
         report += f"• {sec}: {(val/total_val)*100:.1f}%\n"
 
-    # Summary
     port_daily_pct = (daily_gain_sum / (total_val - daily_gain_sum)) * 100 if total_val > daily_gain_sum else 0
     alpha = port_daily_pct - nifty_chg
     
