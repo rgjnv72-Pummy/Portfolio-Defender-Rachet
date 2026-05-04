@@ -20,7 +20,7 @@ MY_HOLDINGS = {
     "SKYGOLD.NS": [218, 417.00, "2026-04-22", "Consumer Durables"],
     "AARTIIND.NS": [218, 459.54, "2026-04-22", "Chemicals"],
     "ABB.NS": [15, 7432.00, "2026-04-28", "Capital Goods"],
-    "HITACHIENER.NS": [4, 32905.00, "2026-04-29", "Capital Goods"],
+    "HITACHI.NS": [4, 32905.00, "2026-04-29", "Capital Goods"],
     "KIRLOSENG.NS": [60, 1694.80, "2026-04-30", "Capital Goods"],
     "BHEL.NS": [300, 349.00, "2026-04-30", "Capital Goods"],
     "HFCL.NS": [1000, 122.50, "2026-05-04", "Telecommunication"],
