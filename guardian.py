@@ -11,19 +11,23 @@ MY_TOKEN = os.getenv('TELEGRAM_TOKEN')
 # --- UPDATED HOLDINGS ---
 MY_HOLDINGS = {
     "CHENNPETRO.NS": [200, 910.00, "2026-03-12", "Energy"],
-    "TATAPOWER.NS": [500, 403.00, "2026-03-23", "Energy"],
-    "GPIL.NS": [760, 262.98, "2026-03-23", "Metals"],
-    "LLOYDSME.NS": [109, 1446.56, "2026-04-07", "Metals"],
-    "PREMIERENE.NS": [150, 943.30, "2026-04-07", "Infrastructure"],
-    "NATCOPHARM.NS": [150, 1066.00, "2026-04-07", "Pharma"],
-    "ADANIPOWER.NS": [1000, 163.36, "2026-04-07", "Energy"],
-    "ASHOKLEY.NS": [1400, 173.00, "2026-04-09", "Auto"],
-    "SAMMAANCAP.NS": [922, 154.89, "2026-04-13", "Finance"],
-    "ORIENTELEC.NS": [600, 184.00, "2026-04-21", "Consumer Durables"],
-    "AARTIIND.NS": [218, 459.54, "2026-04-22", "Chemicals"],
-    "SKYGOLD.NS": [218, 417.00, "2026-04-22", "Consumer Durables"],
-    "ABB.NS": [15, 7432.00, "2026-04-28", "Capital Goods"],
-    "HITACHIENER.NS": [3, 32800.00, "2026-04-29", "Capital Goods"]
+"TATAPOWER.NS": [500, 403.00, "2026-03-23", "Energy"],
+"LLOYDSME.NS": [109, 1446.56, "2026-04-07", "Metals"],
+"ADANIPOWER.NS": [1000, 163.36, "2026-04-07", "Energy"],
+"PREMIERENE.NS": [150, 943.30, "2026-04-07", "Infrastructure"],
+"NATCOPHARM.NS": [150, 1066.00, "2026-04-07", "Pharma"],
+"ORIENTELEC.NS": [700, 184.00, "2026-04-21", "Consumer Durables"],
+"SKYGOLD.NS": [218, 417.00, "2026-04-22", "Consumer Durables"],
+"AARTIIND.NS": [218, 459.54, "2026-04-22", "Chemicals"],
+"ABB.NS": [15, 7432.00, "2026-04-28", "Capital Goods"],
+"HITACHIENER.NS": [4, 32905.00, "2026-04-29", "Capital Goods"],
+"KIRLPNU.NS": [60, 1694.80, "2026-04-30", "Capital Goods"],
+"BHEL.NS": [300, 349.00, "2026-04-30", "Capital Goods"],
+"HFCL.NS": [1000, 122.50, "2026-05-04", "Telecommunication"],
+"ADANIPORTS.NS": [70, 1702.00, "2026-05-04", "Infrastructure"],
+"TENNECO.NS": [145, 635.00, "2026-05-04", "Auto Components"]
+
+
 }
 
 
