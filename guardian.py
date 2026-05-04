@@ -30,7 +30,9 @@ MY_HOLDINGS = {
 
 
 
-}
+
+
+
 
 
 def send_msg(text):
