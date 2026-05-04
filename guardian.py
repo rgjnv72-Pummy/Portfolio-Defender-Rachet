@@ -10,7 +10,6 @@ MY_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 # --- UPDATED HOLDINGS ---
 MY_HOLDINGS = {
-   MY_HOLDINGS = {
     "CHENNPETRO.NS": [200, 910.00, "2026-03-12", "Energy"],
     "TATAPOWER.NS": [500, 403.00, "2026-03-23", "Energy"],
     "LLOYDSME.NS": [109, 1446.56, "2026-04-07", "Metals"],
