@@ -10,8 +10,7 @@ MY_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 # --- HOLDINGS ---
 MY_HOLDINGS = {
-    "CHENNPETRO.NS": [200, 910.00, "2026-03-12", "Energy"],
-    "TATAPOWER.NS": [500, 403.00, "2026-03-23", "Energy"],
+        "CHENNPETRO.NS": [200, 910.00, "2026-03-12", "Energy"],
     "LLOYDSME.NS": [109, 1446.56, "2026-04-07", "Metals"],
     "ADANIPOWER.NS": [1000, 163.36, "2026-04-07", "Energy"],
     "PREMIERENE.NS": [150, 943.30, "2026-04-07", "Infrastructure"],
@@ -19,13 +18,16 @@ MY_HOLDINGS = {
     "ORIENTELEC.NS": [700, 184.00, "2026-04-21", "Consumer Durables"],
     "SKYGOLD.NS": [218, 417.00, "2026-04-22", "Consumer Durables"],
     "AARTIIND.NS": [218, 459.54, "2026-04-22", "Chemicals"],
-    "ABB.NS": [15, 7432.00, "2026-04-28", "Capital Goods"],
-    "POWERINDIA.NS": [4, 32905.00, "2026-04-29", "Capital Goods"],
-    "KIRLOSENG.NS": [60, 1694.80, "2026-04-30", "Capital Goods"],
-    "BHEL.NS": [300, 349.00, "2026-04-30", "Capital Goods"],
+    "ABB.NS": [15, 7432.00, "2026-04-28", "Infrastructure"],
+    "HITACHI.NS": [4, 32905.00, "2026-04-29", "Energy"],
+    "KIRLOSENG.NS": [60, 1694.80, "2026-04-30", "Industrial"],
+    "BHEL.NS": [300, 349.00, "2026-04-30", "Infrastructure"],
     "HFCL.NS": [1000, 122.50, "2026-05-04", "Telecommunication"],
     "ADANIPORTS.NS": [70, 1702.00, "2026-05-04", "Infrastructure"],
-    "TENNIND.NS": [145, 635.00, "2026-05-04", "Auto Components"]
+    "TENNECO.NS": [145, 635.00, "2026-05-04", "Industrial"],
+    "DRLALPATH.NS": [65, 1570.50, "2026-05-06", "Healthcare"],
+    "NETWEB.NS": [25, 4344.00, "2026-05-06", "IT"]
+
 }
 
 def send_msg(text):
