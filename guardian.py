@@ -17,17 +17,17 @@ MY_HOLDINGS = {
     "SKYGOLD.NS": [218, 417.00, "2026-04-22", "Consumer Durables"],
     "AARTIIND.NS": [218, 459.54, "2026-04-22", "Chemicals"],
     "ABB.NS": [15, 7432.00, "2026-04-28", "Infrastructure"],
-    "HITACHIENGY.NS": [4, 32905.00, "2026-04-29", "Infrastructure"],
-    "KIRLFERRO.NS": [60, 1694.80, "2026-04-30", "Capital Goods"],
+    "POWERINDIA.NS": [4, 32905.00, "2026-04-29", "Infrastructure"],
+    "KIRLOSENG.NS": [60, 1694.80, "2026-04-30", "Capital Goods"],
     "BHEL.NS": [300, 349.00, "2026-04-30", "Infrastructure"],
     "HFCL.NS": [1000, 122.50, "2026-05-04", "Telecommunication"],
     "ADANIPORTS.NS": [70, 1702.00, "2026-05-04", "Infrastructure"],
-    "TENNECO.NS": [145, 635.00, "2026-05-04", "Auto Components"],
+    "TENNIND.NS": [145, 635.00, "2026-05-04", "Auto Components"],
     "LALPATHLAB.NS": [65, 1570.50, "2026-05-06", "Healthcare"],
     "NETWEB.NS": [25, 4344.00, "2026-05-06", "IT - Hardware"],
     "LAURUSLABS.NS": [68, 1211.20, "2026-05-07", "Pharma"],
     "HINDZINC.NS": [160, 641.70, "2026-05-07", "Metals"],
-    "GET&D.NS": [25, 4700.00, "2026-05-07", "Infrastructure"],
+    "GVT&D.NS": [25, 4700.00, "2026-05-07", "Infrastructure"],
     "HAL.NS": [21, 4700.90, "2026-05-07", "Defense"]
 }
 
