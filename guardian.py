@@ -9,8 +9,7 @@ MY_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 MY_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 # --- HOLDINGS ---
-MY_HOLDINGS = 
-    {
+MY_HOLDINGS = {
     "ADANIPOWER.NS": [1000, 163.36, "2026-04-07", "Energy"],
     "PREMIERENE.NS": [150, 943.30, "2026-04-07", "Infrastructure"],
     "NATCOPHARM.NS": [150, 1066.00, "2026-04-07", "Pharma"],
@@ -31,6 +30,7 @@ MY_HOLDINGS =
     "GET&D.NS": [25, 4700.00, "2026-05-07", "Infrastructure"],
     "HAL.NS": [21, 4700.90, "2026-05-07", "Defense"]
 }
+
 
 
 def send_msg(text):
