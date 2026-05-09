@@ -20,8 +20,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install yfinance pandas==1.5.3 numpy==1.26.4 tqdm
-          # This command avoids using the https:// link directly
-          pip install pandas-ta --permissive
+          # This is the direct, un-breakable path to the library code
+          pip install "pandas-ta @ git+https://github.com"
 
       - name: Execute Script
         env:
