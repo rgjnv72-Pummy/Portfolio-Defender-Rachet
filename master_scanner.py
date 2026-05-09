@@ -2,12 +2,13 @@ import os, json, http.client, numpy as np, pandas as pd
 import yfinance as yf
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from tqdm import tqdm
 
 # --- AUTH (Uses GitHub Secrets) ---
 MY_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 MY_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
-# --- INDICATOR MATH (Native Replacements) ---
+# --- INDICATOR MATH ---
 def get_hma(series, length):
     def wma(s, p):
         weights = np.arange(1, p + 1)
@@ -39,7 +40,8 @@ def send_msg(text):
         conn.request("POST", f"/bot{MY_TOKEN}/sendMessage", payload, headers)
         conn.getresponse()
         conn.close()
-    except: pass
+    except Exception as e:
+        print(f"Telegram Error: {e}")
 
 def scan_master_confluence(symbol):
     try:
@@ -52,6 +54,8 @@ def scan_master_confluence(symbol):
         # -- DRIFT MATH --
         drift = (((c.iloc[-1]/c.iloc[-250])-1)/250 * 0.7) + (((c.iloc[-1]/c.iloc[-20])-1)/20 * 0.3)
         upside = ((c.iloc[-1] * (1 + (drift * 30)) - c.iloc[-1]) / c.iloc[-1]) * 100
+        
+        # CORE FILTER: 1.5% to 30% upside
         if not (1.5 < upside < 30): return None
 
         score, signals = 0, []
@@ -70,7 +74,8 @@ def scan_master_confluence(symbol):
         if get_rsi(c, 14).iloc[-1] > 55: score += 1; signals.append("RSI")
 
         # 3. GUPPY
-        st_p, lt_p = [3, 5, 8, 10, 12, 15], [30, 35, 40, 45, 50, 60]
+        st_p = [3, 5, 8, 10, 12, 15]
+        lt_p = [30, 35, 40, 45, 50, 60]
         st_min = pd.concat([get_ema(c, p) for p in st_p], axis=1).min(axis=1)
         lt_max = pd.concat([get_ema(c, p) for p in lt_p], axis=1).max(axis=1)
         if st_min.iloc[-1] > lt_max.iloc[-1]: score += 1; signals.append("GUP")
@@ -86,37 +91,33 @@ def scan_master_confluence(symbol):
     except: return None
 
 def run_master_scan():
-    # Automatically finds the CSV file in the repo
-    csv_files = [f for f in os.listdir('.') if f.endswith('.csv') and 'nifty' in f.lower()]
-    if not csv_files: return
-    CSV_NAME = csv_files[0]
+    # Detect CSV file automatically
+    csv_files = [f for f in os.listdir('.') if f.endswith('.csv')]
+    if not csv_files:
+        send_msg("❌ *Error:* No CSV file found in repository.")
+        return
     
+    CSV_NAME = csv_files[0]
     df_csv = pd.read_csv(CSV_NAME)
-    col = next((c for c in df_csv.columns if 'symbol' in c.lower() or 'ticker' in c.lower()), df_csv.columns[0])
+    
+    # Try to find symbol column (usually the 3rd column or named 'Symbol')
+    col = next((c for c in df_csv.columns if 'symbol' in c.lower() or 'ticker' in c.lower()), df_csv.columns[2])
     tickers = df_csv[col].dropna().unique().tolist()
     
-    # Sector mapping logic
-    sec_col = next((c for c in df_csv.columns if 'sector' in c.lower() or 'industry' in c.lower()), None)
-    sector_map = dict(zip(df_csv[col], df_csv[sec_col])) if sec_col else {}
+    send_msg(f"🚀 *Engine Started:* Scanning {len(tickers)} stocks from `{CSV_NAME}`...")
 
     results = []
     with ThreadPoolExecutor(max_workers=5) as executor:
-        for res in executor.map(scan_master_confluence, tickers):
-            if res:
-                res['Sector'] = sector_map.get(res['Symbol'], 'Others')
-                results.append(res)
+        for res in tqdm(executor.map(scan_master_confluence, tickers), total=len(tickers)):
+            if res: results.append(res)
 
-    if not results: return
+    if not results:
+        send_msg(f"📡 *Scan Complete:* No stocks met the Kronos criteria today in `{CSV_NAME}`.")
+        return
     
     final_df = pd.DataFrame(results).sort_values(by=['Score', 'Upside%'], ascending=False)
     
-    msg = f"🏆 *KRONOS CONFLUENCE MASTER: {CSV_NAME}*\n_13-Module Integrated Score_\n\n"
-    
-    if sector_map:
-        s_heat = final_df.groupby('Sector')['Upside%'].mean().sort_values(ascending=False).head(3)
-        msg += "🔥 *SECTOR FLOW*\n"
-        for sec, val in s_heat.items(): msg += f"• {sec}: {round(val,1)}%\n"
-        msg += "\n"
+    msg = f"🏆 *KRONOS CONFLUENCE MASTER: {CSV_NAME}*\n_13-Module Integrated Score_\n━━━━━━━━━━━━━━━━━━━━\n\n"
 
     for _, r in final_df.head(20).iterrows():
         icon = "💎" if r['Score'] >= 4 else "🔥"
