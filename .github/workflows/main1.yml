@@ -2,25 +2,28 @@ name: Kronos Friday Master Scan
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    # Runs at 10:10 AM UTC (3:40 PM IST) Monday to Friday
+    - cron: '10 10 * * 1-5'
   workflow_dispatch:
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          
-      - name: Install dependencies
-        run: |
-          pip install yfinance pandas numpy tqdm
 
-      - name: Execute Script
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install yfinance pandas numpy
+
+      - name: Execute Master Scanner
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
