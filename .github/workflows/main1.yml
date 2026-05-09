@@ -20,9 +20,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install yfinance pandas==1.5.3 numpy==1.26.4 tqdm
-          # We define the link as a variable so the YAML parser can't break it
-          LINK="https://github.com"
-          pip install "$LINK"
+          # We split the URL into pieces so GitHub cannot find a dot to break at
+          site="github"
+          ext="com"
+          path="twopirllc/pandas-ta/archive/refs/tags/v0.3.14b.zip"
+          # The computer joins them only at the moment of installation
+          pip install "https://${site}.${ext}/${path}"
 
       - name: Execute Script
         env:
