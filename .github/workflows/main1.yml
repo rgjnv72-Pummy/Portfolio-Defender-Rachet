@@ -18,9 +18,10 @@ jobs:
           
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install yfinance pandas==1.5.3 numpy==1.26.4 tqdm
-          # We use the direct ZIP link so GitHub doesn't get confused
-          pip install https://github.com
+          # This command avoids using the https:// link directly
+          pip install pandas-ta --permissive
 
       - name: Execute Script
         env:
