@@ -1,5 +1,4 @@
 yfinance
-pandas
-numpy
+pandas==1.5.3
+numpy<2.0.0
 tqdm
-pandas-ta
