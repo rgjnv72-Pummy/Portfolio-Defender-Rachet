@@ -2,8 +2,10 @@ name: Kronos Friday Master Scan
 
 on:
   schedule:
-    - cron: '10 10 * * 1-5'
-  workflow_dispatch:
+    # 10:30 UTC is 4:00 PM IST
+    # 5 is the code for Friday
+    - cron: '30 10 * * 5'
+  workflow_dispatch: # Allows you to still run it manually whenever you want
 
 jobs:
   run-script:
@@ -17,12 +19,11 @@ jobs:
         with:
           python-version: '3.10'
 
-      # Added tqdm here to fix the crash
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance pandas numpy tqdm
-
+          pip install yfinance pandas numpy tqdm lxml requests
+          
       - name: Execute Master Scanner
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
