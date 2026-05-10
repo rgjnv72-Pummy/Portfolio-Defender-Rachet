@@ -9,13 +9,8 @@ MY_TOKEN = os.getenv('TELEGRAM_TOKEN')
 CSV_NAME = "ind_nifty500list.csv"
 
 def send_msg(text):
-    if not MY_TOKEN or not MY_CHAT_ID:
-        print("❌ ERROR: Secrets not found")
-        return
+    if not MY_TOKEN or not MY_CHAT_ID: return
     try:
-        # Clean text for basic Markdown safety
-        clean_text = text.replace("_", "\\_").replace("*", "\\*") if "```" not in text else text
-        
         conn = http.client.HTTPSConnection("api.telegram.org", timeout=15)
         payload = json.dumps({
             "chat_id": str(MY_CHAT_ID).strip(),
@@ -25,112 +20,100 @@ def send_msg(text):
         })
         headers = {"Content-Type": "application/json"}
         conn.request("POST", f"/bot{MY_TOKEN.strip()}/sendMessage", payload, headers)
-        resp = conn.getresponse()
-        print(f"📡 Telegram Status: {resp.status} {resp.reason}")
+        conn.getresponse()
         conn.close()
-    except Exception as e:
-        print(f"❌ Telegram Failed: {e}")
+    except: pass
 
-# --- MATH ---
+# --- INDICATORS ---
 def get_atr(df, n=14):
     tr = pd.concat([df['High']-df['Low'], abs(df['High']-df['Close'].shift(1)), abs(df['Low']-df['Close'].shift(1))], axis=1).max(axis=1)
     return tr.rolling(n).mean()
 
 def get_rsi(s, n=14):
-    d = s.diff()
-    g = d.where(d > 0, 0).rolling(n).mean()
-    l = d.where(d < 0, 0).abs().rolling(n).mean()
+    d = s.diff(); g = d.where(d > 0, 0).rolling(n).mean(); l = d.where(d < 0, 0).abs().rolling(n).mean()
     return 100 - (100 / (1 + (g/(l + 1e-9))))
 
-# --- ENGINE ---
+# --- SCANNER CORE ---
 def scan_confluence(row):
     try:
         symbol, sector = row[0], row[1]
         ticker = f"{str(symbol).strip()}.NS"
         
-        # Download data (shorter period for speed in GH Actions)
-        df = yf.download(ticker, period="1y", progress=False, auto_adjust=True)
-        if df is None or len(df) < 50: return None
-        
-        # Flatten Multi-Index columns if present
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
+        # Extended period to 2y for better indicator history
+        df = yf.download(ticker, period="2y", progress=False, auto_adjust=True)
+        if df is None or len(df) < 250: return None
+        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
         
         c = df['Close'].astype(float)
         score, signals = 0, []
-        
-        # 1. SQZ (Squeeze)
         sma20, std20 = c.rolling(20).mean(), c.rolling(20).std()
-        if (sma20 + (2*std20)).iloc[-1] < (sma20 + (1.5*get_atr(df, 20))).iloc[-1]:
+        atr20 = get_atr(df, 20)
+
+        # 1. SQZ (Squeeze)
+        if (sma20 + (2*std20)).iloc[-1] < (sma20 + (1.5*atr20)).iloc[-1]:
             score += 1; signals.append("SQZ")
             
-        # 2. RSI (Strength)
+        # 2. ULT (Ultimate Volatility - Bandwidth Minimum)
+        bw = (std20 * 4) / (sma20 + 1e-9)
+        if bw.iloc[-1] <= bw.tail(21).min():
+            score += 1; signals.append("ULT")
+
+        # 3. RSI (Strength)
         if get_rsi(c).iloc[-1] > 55:
             score += 1; signals.append("RSI")
 
-        # 3. GUP (Guppy)
+        # 4. GUP (Guppy Breakout)
         if c.ewm(span=8).mean().iloc[-1] > c.ewm(span=21).mean().iloc[-1]:
             score += 1; signals.append("GUP")
 
-        # 4. Momentum (Simple VAM)
-        if c.iloc[-1] > sma20.iloc[-1]:
-            score += 1; signals.append("MOM")
+        # 5. VAM (Volatility Adjusted Momentum)
+        if c.iloc[-1] > (sma20.iloc[-1] + (atr20.iloc[-1] * 1.5)):
+            score += 1; signals.append("VAM")
 
-        # Upside Estimation
-        drift = ((c.iloc[-1]/c.iloc[0])-1)/len(df)
-        upside = round(drift * 30 * 100, 2)
+        # Upside Calculation
+        drift = (((c.iloc[-1]/c.iloc[-250])-1)/250 * 0.7) + (((c.iloc[-1]/c.iloc[-20])-1)/20 * 0.3)
+        upside = round(((c.iloc[-1] * (1 + (drift * 30)) - c.iloc[-1]) / c.iloc[-1]) * 100, 2)
 
-        if score >= 2:
+        # FILTER: Only keep positive upside and decent score
+        if upside > 0 and score >= 2:
             return {'s': symbol, 'sc': score, 'up': upside, 'sig': "+".join(signals), 'sec': sector}
-    except Exception as e:
-        return None
+    except: return None
 
 def run_master():
-    start_time = datetime.now()
-    send_msg(f"🛰 *KRONOS:* Scan started at {start_time.strftime('%H:%M')} IST")
+    send_msg(f"🛰 *KRONOS:* Friday Master Scan started (2Y History Filter)...")
     
     try:
         df_csv = pd.read_csv(CSV_NAME)
         df_csv.columns = df_csv.columns.str.strip()
-        # Fallback for column names
         s_col = 'Symbol' if 'Symbol' in df_csv.columns else df_csv.columns[0]
         i_col = 'Industry' if 'Industry' in df_csv.columns else df_csv.columns[-1]
         tickers = df_csv[[s_col, i_col]].values.tolist()
-    except Exception as e:
-        send_msg(f"❌ *CSV Error:* {str(e)}")
-        return
+    except: return
 
     results = []
-    # Using 10 workers to stay under GitHub rate limits
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=12) as executor:
         for res in executor.map(scan_confluence, tickers):
-            if res: 
-                results.append(res)
-                print(f"Match: {res['s']} ({res['sc']})")
+            if res: results.append(res)
 
     if not results:
-        send_msg("📡 *KRONOS:* Scan complete. No high-confluence setups found.")
+        send_msg("📡 *KRONOS:* Scan complete. No positive-upside setups found.")
         return
 
-    # Create Report
     final_df = pd.DataFrame(results).sort_values(['sc', 'up'], ascending=False)
     
     report = f"🏆 *KRONOS MASTER SCAN: {datetime.now().strftime('%d %b')}*\n"
     report += "━━━━━━━━━━━━━━━━━━━━\n\n"
     
-    # Sector Exposure
     report += "🔥 *SECTOR FLOW*\n"
     sec_data = final_df['sec'].value_counts(normalize=True).head(3) * 100
     for sec, val in sec_data.items():
         report += f"• {sec}: {val:.1f}%\n"
     report += "\n"
 
-    # Top 20 Stocks
     for _, r in final_df.head(20).iterrows():
         icon = "💎" if r['sc'] >= 4 else "🔥"
         report += f"{icon} `{r['s']}`: *Score {r['sc']}* | {r['up']}% Est | {r['sig']}\n"
 
-    # TradingView List
     tv_list = ",".join([f"NSE:{s}" for s in final_df['s'].head(25)])
     report += f"\n📺 *WATCHLIST*\n`{tv_list}`"
     
