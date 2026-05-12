@@ -1,21 +1,25 @@
 name: Daily Guardian
 on:
   schedule:
-    # Runs at 14:47 UTC (8:17 PM IST) Monday to Friday
-    - cron: '47 14 * * 1-5'
-  workflow_dispatch:
+    # 10:10 PM IST is 16:40 UTC
+    - cron: '40 16 * * 1-5'
+  workflow_dispatch: # Keeps the manual 'Run' button available
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          
       - name: Install dependencies
-        run: pip install yfinance pandas numpy
+        # Added pandas-ta which is required for your code's logic to execute
+        run: pip install yfinance pandas numpy pandas-ta 
+        
       - name: Execute Script
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
