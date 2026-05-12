@@ -22,7 +22,7 @@ MY_HOLDINGS = {
     "NETWEB.NS": [25, 4344.00, "2026-05-06", "IT - Hardware"],
     "LALPATHLAB.NS": [65, 1570.50, "2026-05-06", "Healthcare"],
     "HAL.NS": [21, 4700.90, "2026-05-07", "Defense"],
-    "GET&D.NS": [25, 4700.00, "2026-05-07", "Infrastructure"],
+    "GVT&D.NS": [25, 4700.00, "2026-05-07", "Infrastructure"],
     "LAURUSLABS.NS": [68, 1211.20, "2026-05-07", "Pharma"],
     "HINDZINC.NS": [160, 641.70, "2026-05-07", "Metals"],
     "GALLANTT.NS": [100, 906.00, "2026-05-11", "Metals"],
