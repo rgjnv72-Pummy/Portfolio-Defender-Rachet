@@ -29,7 +29,8 @@ MY_HOLDINGS = {
     "ATHERENERG.NS": [100, 943.00, "2026-05-11", "Auto Components"],
     "APARINDS.NS": [9, 12905.00, "2026-05-12", "Capital Goods"],
     "CARBORUNIV.NS": [100, 1026.00, "2026-05-12", "Capital Goods"],
-    "JISLJALEQS.NS": [200, 560.00, "2026-05-12", "Infrastructure"]
+    "JAINREC.NS": [200, 560.00, "2026-05-12", "Infrastructure"]
+
 }
 
 
