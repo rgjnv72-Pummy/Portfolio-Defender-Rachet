@@ -5,10 +5,11 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
+from datetime import datetime
 from nselib import capital_market
 
 # --- SYSTEM FIX ---
+# Prevents yfinance from flooding requests and erroring on timezone lookups
 yf.set_tz_cache_location("cache")
 
 # --- AUTH ---
@@ -50,38 +51,34 @@ def get_rsi(s, n=14):
     return 100 - (100 / (1 + (g / (l + 1e-9))))
 
 def fetch_delivery_percentage(symbol, days=5):
-    """Fetches historical deliverable data directly from the NSE website."""
+    """Fetches historical deliverable data cleanly from NSE via a 1M lookback period."""
     try:
-        end_dt = datetime.now()
-        start_dt = end_dt - timedelta(days=14) 
-        
-        from_str = start_dt.strftime('%d-%m-%Y')
-        to_str = end_dt.strftime('%d-%m-%Y')
-        
-        raw_df = capital_market.price_volume_and_deliverable_position_data(
-            symbol=symbol, from_date=from_str, to_date=to_str
-        )
+        # FIXED: Using native '1M' period parameter removes date calculation failures
+        raw_df = capital_market.price_volume_and_deliverable_position_data(symbol=symbol, period='1M')
         if raw_df is None or raw_df.empty:
             return "N/A"
             
         raw_df.columns = raw_df.columns.str.strip()
+        
+        # Dynamic search handles variations in column header formatting on NSE
         del_col = [c for c in raw_df.columns if 'Dly' in c or 'Deliverable' in c]
         if not del_col:
             return "N/A"
             
-        raw_df[del_col] = pd.to_numeric(raw_df[del_col], errors='coerce')
-        recent_delivery = raw_df[del_col].dropna().tail(days)
+        target_col = del_col[0]
+        raw_df[target_col] = pd.to_numeric(raw_df[target_col], errors='coerce')
+        recent_delivery = raw_df[target_col].dropna().tail(days)
         
         return round(recent_delivery.mean(), 1) if not recent_delivery.empty else "N/A"
     except:
         return "N/A"
 
 # --- SCANNER CORE ---
-def scan_confluence(row):
+def scan_confluence(item):
     try:
-        # FIXED: Proper extraction from the array list tracking elements
-        symbol = str(row[0]).strip()
-        sector = str(row[1]).strip()
+        # FIXED: Explicitly maps complete strings from dictionary structures
+        symbol = str(item['Symbol']).strip()
+        sector = str(item['Industry']).strip()
         ticker = f"{symbol}.NS"
         
         df = yf.download(ticker, period="2y", progress=False, auto_adjust=True, timeout=15)
@@ -136,21 +133,27 @@ def scan_confluence(row):
         return None
 
 def run_master():
-    send_msg(f"🛰 *KRONOS:* Friday Master Scan started (2Y History + 5D Delivery Highlighting)...")
+    send_msg(f"🛰 *KRONOS:* Friday Master Scan started (Dictionary Structure + 5D Delivery Tracking)...")
     
     try:
         df_csv = pd.read_csv(CSV_NAME)
         df_csv.columns = df_csv.columns.str.strip()
+        
+        # Detect exact positional parameters for mapping headers
         s_col = 'Symbol' if 'Symbol' in df_csv.columns else df_csv.columns[0]
         i_col = 'Industry' if 'Industry' in df_csv.columns else df_csv.columns[-1]
-        tickers = df_csv[[s_col, i_col]].values.tolist()
+        
+        # FIXED: Enforces proper key label frameworks before parallel mapping loops
+        tickers_df = df_csv[[s_col, i_col]].rename(columns={s_col: 'Symbol', i_col: 'Industry'})
+        items_list = tickers_df.to_dict(orient='records')
     except Exception as e:
         send_msg(f"⚠️ *KRONOS ERROR:* Could not read CSV file `{CSV_NAME}`. Exiting scan.")
         return
 
     results = []
-    with ThreadPoolExecutor(max_workers=12) as executor:
-        for res in executor.map(scan_confluence, tickers):
+    # Using 8 workers prevents thread limits and connection errors during execution
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        for res in executor.map(scan_confluence, items_list):
             if res: 
                 results.append(res)
 
@@ -172,7 +175,6 @@ def run_master():
     for _, r in final_df.head(20).iterrows():
         icon = "💎" if r['sc'] >= 4 else "🔥"
         
-        # Delivery presentation logic handling numeric vs fallback "N/A"
         if isinstance(r['del'], (int, float)):
             if r['del'] >= 50.0:
                 del_alert = f" | 🚀 *5D Del: {r['del']}%*"
