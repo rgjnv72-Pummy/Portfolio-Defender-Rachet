@@ -2,9 +2,9 @@ name: Kronos Alpha Engine Friday Cron
 
 on:
   schedule:
-    # 10:30 UTC is exactly 16:00 (4:30 PM) Indian Standard Time (IST)
+    # 10:30 UTC triggers at exactly 16:00 (4:30 PM) Indian Standard Time (IST) every Friday
     - cron: '30 10 * * 5'
-  workflow_dispatch: # Allows manual trigger via the GitHub Actions dashboard tab
+  workflow_dispatch: # Allows you to manually trigger it via the 'Actions' tab anytime
 
 jobs:
   run-scanner:
@@ -25,8 +25,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install numpy pandas yfinance nselib scikit-learn
 
-    - name: Run Optimized Alpha Scanner
+    - name: Run Standalone Dynamic Risk Scanner
       env:
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-      run: python your_script_name.py # Change this if your file has a different name
+      run: python kronos_alpha_scanner.py
