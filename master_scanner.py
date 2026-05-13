@@ -9,7 +9,6 @@ from datetime import datetime
 from nselib import capital_market
 
 # --- SYSTEM FIX ---
-# Prevents yfinance from flooding requests and erroring on timezone lookups
 yf.set_tz_cache_location("cache")
 
 # --- AUTH ---
@@ -51,32 +50,39 @@ def get_rsi(s, n=14):
     return 100 - (100 / (1 + (g / (l + 1e-9))))
 
 def fetch_delivery_percentage(symbol, days=5):
-    """Fetches historical deliverable data cleanly from NSE via a 1M lookback period."""
+    """Fetches and isolates the true percentage column from NSE data."""
     try:
-        # FIXED: Using native '1M' period parameter removes date calculation failures
         raw_df = capital_market.price_volume_and_deliverable_position_data(symbol=symbol, period='1M')
         if raw_df is None or raw_df.empty:
             return "N/A"
             
         raw_df.columns = raw_df.columns.str.strip()
         
-        # Dynamic search handles variations in column header formatting on NSE
-        del_col = [c for c in raw_df.columns if 'Dly' in c or 'Deliverable' in c]
-        if not del_col:
-            return "N/A"
-            
-        target_col = del_col[0]
+        # FIXED: Targets the true percentage ratio column instead of raw share volume
+        pct_col = [c for c in raw_df.columns if '%' in c or 'ToTradedQty' in c or 'Percentage' in c]
+        
+        if not pct_col:
+            # Fallback strategy if column structures change
+            pct_col = [c for c in raw_df.columns if 'Dly' in c or 'Deliverable' in c]
+            if len(pct_col) > 1:
+                pct_col = [pct_col[-1]] # Usually percentage is the last column layout
+                
+        target_col = pct_col[0]
         raw_df[target_col] = pd.to_numeric(raw_df[target_col], errors='coerce')
         recent_delivery = raw_df[target_col].dropna().tail(days)
         
-        return round(recent_delivery.mean(), 1) if not recent_delivery.empty else "N/A"
+        if recent_delivery.empty:
+            return "N/A"
+            
+        final_val = round(recent_delivery.mean(), 1)
+        # Final safety catch to prevent raw share volume leakages
+        return final_val if final_val <= 100.0 else "N/A"
     except:
         return "N/A"
 
 # --- SCANNER CORE ---
 def scan_confluence(item):
     try:
-        # FIXED: Explicitly maps complete strings from dictionary structures
         symbol = str(item['Symbol']).strip()
         sector = str(item['Industry']).strip()
         ticker = f"{symbol}.NS"
@@ -133,25 +139,23 @@ def scan_confluence(item):
         return None
 
 def run_master():
-    send_msg(f"🛰 *KRONOS:* Friday Master Scan started (Dictionary Structure + 5D Delivery Tracking)...")
+    send_msg(f"🛰 *KRONOS:* Friday Master Scan started (Delivery Column Ratio Fix)...")
     
     try:
         df_csv = pd.read_csv(CSV_NAME)
         df_csv.columns = df_csv.columns.str.strip()
         
-        # Detect exact positional parameters for mapping headers
-        s_col = 'Symbol' if 'Symbol' in df_csv.columns else df_csv.columns[0]
-        i_col = 'Industry' if 'Industry' in df_csv.columns else df_csv.columns[-1]
+        # FIXED: Comprehensive header detection to support standard NSE CSV variations
+        s_col = [c for c in df_csv.columns if 'Symbol' in c or 'Ticker' in c][0]
+        i_col = [c for c in df_csv.columns if 'Industry' in c or 'Sector' in c or 'Category' in c][0]
         
-        # FIXED: Enforces proper key label frameworks before parallel mapping loops
         tickers_df = df_csv[[s_col, i_col]].rename(columns={s_col: 'Symbol', i_col: 'Industry'})
         items_list = tickers_df.to_dict(orient='records')
     except Exception as e:
-        send_msg(f"⚠️ *KRONOS ERROR:* Could not read CSV file `{CSV_NAME}`. Exiting scan.")
+        send_msg(f"⚠️ *KRONOS ERROR:* Could not parse CSV headers. Verify 'Symbol' and 'Industry' columns exist.")
         return
 
     results = []
-    # Using 8 workers prevents thread limits and connection errors during execution
     with ThreadPoolExecutor(max_workers=8) as executor:
         for res in executor.map(scan_confluence, items_list):
             if res: 
