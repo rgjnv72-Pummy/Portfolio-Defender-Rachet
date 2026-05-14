@@ -10,27 +10,27 @@ yf.set_tz_cache_location("cache")
 MY_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 MY_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
-# --- CURRENT OPEN HOLDINGS ---
+# --- CURRENT OPEN HOLDINGS (Fixed Ticker Symbols for NSE Stream) ---
 # Format: "YFinance_Ticker": [Total_Qty, Weighted_Avg_Buy_Price, Base_Date, "Sector", Manual_Current_Price_Fallback]
 CURRENT_HOLDINGS = {
     "PREMIERENE.NS": [150, 943.30, "2026-04-07", "Infrastructure", 970.70],
-    "NATCOPHARM.NS": [150, 1066.00, "2026-04-07", "Pharma", 1158.50],
-    "ORIENTELEC.NS": [700, 184.00, "2026-04-21", "Consumer Durables", 187.70],
-    "POWERINDIA.NS": [4, 32905.00, "2026-04-29", "Infrastructure", 31915.00],  # Hitachi Energy
+    "NATCOPHARM.NS": [150, 1066.00, "2026-04-07", "Pharma", 1175.60],
+    "ORIENTELEC.NS": [700, 184.00, "2026-04-21", "Consumer Durables", 188.40],
+    "POWERINDIA.NS": [4, 32905.00, "2026-04-29", "Infrastructure", 31905.00],  # Hitachi Energy
     "BHEL.NS": [300, 349.00, "2026-04-30", "Infrastructure", 405.30],
-    "ADANIPORTS.NS": [70, 1702.00, "2026-05-04", "Infrastructure", 1753.10],
-    "TENNIND.NS": [145, 635.00, "2026-05-04", "Auto Components", 605.55],
+    "ADANIPORTS.NS": [70, 1702.00, "2026-05-04", "Infrastructure", 1767.20],
+    "TENNIND.NS": [145, 635.00, "2026-05-04", "Auto Components", 604.55],
     "HFCL.NS": [1000, 122.50, "2026-05-04", "Telecommunication", 142.44],
-    "NETWEB.NS": [25, 4344.00, "2026-05-06", "IT - Hardware", 3876.90],
-    "LALPATHLAB.NS": [65, 1570.50, "2026-05-06", "Healthcare", 1573.70],
-    "HAL.NS": [21, 4700.90, "2026-05-07", "Defense", 4559.80],
-    "LAURUSLABS.NS": [68, 1211.20, "2026-05-07", "Pharma", 1298.60],
-    "HINDZINC.NS": [160, 641.70, "2026-05-07", "Metals", 671.55],
-    "GALLANTT.NS": [100, 906.00, "2026-05-11", "Metals", 752.65],
-    "APARINDS.NS": [9, 12905.00, "2026-05-12", "Capital Goods", 12461.00],
-    "CARBORUNIV.NS": [111, 1024.71, "2026-05-12", "Capital Goods", 1030.00],
-    "HINDCOPPER.NS": [198, 598.64, "2026-05-13", "Metals", 609.00],          # Combined Tranches
-    "APTUS.NS": [300, 270.25, "2026-05-13", "Financial Services", 269.25]
+    "NETWEB.NS": [25, 4344.00, "2026-05-06", "IT - Hardware", 3901.30],
+    "LALPATHLAB.NS": [65, 1570.50, "2026-05-06", "Healthcare", 1582.00],
+    "HAL.NS": [21, 4700.90, "2026-05-07", "Defense", 4585.20],
+    "LAURUSLABS.NS": [68, 1211.20, "2026-05-07", "Pharma", 1299.70],
+    "HINDZINC.NS": [160, 641.70, "2026-05-07", "Metals", 670.30],
+    "GALLANTT.NS": [100, 906.00, "2026-05-11", "Metals", 763.50],
+    "APARINDS.NS": [9, 12905.00, "2026-05-12", "Capital Goods", 12461.00],      # Fixed Ticker String
+    "CARBORUNIV.NS": [111, 1024.71, "2026-05-12", "Capital Goods", 1040.00],
+    "HINDCOPPER.NS": [198, 598.64, "2026-05-13", "Metals", 609.00],
+    "APTUS.NS": [300, 270.25, "2026-05-13", "Financial Services", 269.25]        # Fixed Ticker String
 }
 
 def send_msg(text):
@@ -69,29 +69,31 @@ def run_simplified_watchdog():
     # --- FIRST PASS: ABSOLUTE ACCOUNT VALUATION SYNC ---
     for ticker, (qty, buy_p, buy_date, sector, fallback_p) in CURRENT_HOLDINGS.items():
         try:
-            # Attempt to use real-time yfinance metrics if populated
-            df_ticker = data.xs(ticker, axis=1, level=1).dropna() if not data.empty else pd.DataFrame()
-            if not df_ticker.empty and len(df_ticker) >= 2:
-                latest_close = float(df_ticker['Close'].iloc[-1])
-                yesterday_close = float(df_ticker['Close'].iloc[-2])
-            else:
-                raise ValueError()
-            
-            total_val += (latest_close * qty)
-            total_cost += (buy_p * qty)
-            daily_gain_sum += (latest_close - yesterday_close) * qty
+            # Multiindex column existence parsing verification step
+            if (not data.empty) and ('Close' in data.columns) and (ticker in data['Close'].columns):
+                df_ticker = data.xs(ticker, axis=1, level=1).dropna()
+                if len(df_ticker) >= 2:
+                    latest_close = float(df_ticker['Close'].iloc[-1])
+                    yesterday_close = float(df_ticker['Close'].iloc[-2])
+                    
+                    total_val += (latest_close * qty)
+                    total_cost += (buy_p * qty)
+                    daily_gain_sum += (latest_close - yesterday_close) * qty
+                    continue
+            raise ValueError()
         except Exception:
-            # Direct ledger injection if yfinance skips data collection
+            # Fallback tracking loop executes if dynamic data extraction drops out
             total_val += (fallback_p * qty)
             total_cost += (buy_p * qty)
-            # Rough proxy assumption using a flat balance delta line
             daily_gain_sum += 0.0 
             skipped_tickers.append(ticker.replace('.NS', ''))
 
     # --- SECOND PASS: DYNAMIC RISK TRAILS ---
     for ticker, (qty, buy_p, buy_date, sector, fallback_p) in CURRENT_HOLDINGS.items():
         try:
-            if data.empty: continue
+            if (data.empty) or ('Close' not in data.columns) or (ticker not in data['Close'].columns):
+                continue
+                
             df = data.xs(ticker, axis=1, level=1).dropna().copy()
             if len(df) < 15: 
                 continue
