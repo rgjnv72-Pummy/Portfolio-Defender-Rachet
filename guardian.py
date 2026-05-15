@@ -26,7 +26,7 @@ CURRENT_HOLDINGS = {
     "HAL.NS": [21, 4700.90, "2026-05-07", "Defense", 4585.20],
     "LAURUSLABS.NS": [68, 1211.20, "2026-05-07", "Pharma", 1299.70],
     "HINDZINC.NS": [160, 641.70, "2026-05-07", "Metals", 670.30],
-    "GALLANTT.NS": [100, 906.00, "2026-05-11", "Metals", 763.50],
+    "BHARATFORG.NS": [39, 1959.00, "2026-05-15", "Industrial Manufacturing", 1934.00],
     "ATHERENERG.NS": [100, 943.00, "2026-05-11", "Auto Components", 943.30],   # Fixed Exchange Identifier
     "APARINDS.NS": [9, 12905.00, "2026-05-12", "Capital Goods", 12461.00],
     "CARBORUNIV.NS": [111, 1024.71, "2026-05-12", "Capital Goods", 1040.00],
