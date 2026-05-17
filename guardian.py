@@ -10,13 +10,12 @@ yf.set_tz_cache_location("cache")
 MY_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 MY_TOKEN = os.getenv('TELEGRAM_TOKEN')
 
-# --- CURRENT OPEN HOLDINGS (Ticker Strings Standardized to Yahoo Finance Master) ---
-# Format: "YFinance_Ticker": [Total_Qty, Weighted_Avg_Buy_Price, Base_Date, "Sector", Manual_Current_Price_Fallback]
+# --- CURRENT OPEN HOLDINGS ---
 CURRENT_HOLDINGS = {
     "PREMIERENE.NS": [150, 943.30, "2026-04-07", "Infrastructure", 970.70],
     "NATCOPHARM.NS": [150, 1066.00, "2026-04-07", "Pharma", 1175.60],
     "ORIENTELEC.NS": [700, 184.00, "2026-04-21", "Consumer Durables", 188.40],
-    "POWERINDIA.NS": [4, 32905.00, "2026-04-29", "Infrastructure", 31905.00],  # Hitachi Energy
+    "POWERINDIA.NS": [4, 32905.00, "2026-04-29", "Infrastructure", 31905.00],  
     "BHEL.NS": [300, 349.00, "2026-04-30", "Infrastructure", 405.30],
     "ADANIPORTS.NS": [70, 1702.00, "2026-05-04", "Infrastructure", 1767.20],
     "TENNIND.NS": [145, 635.00, "2026-05-04", "Auto Components", 604.55],
@@ -27,10 +26,10 @@ CURRENT_HOLDINGS = {
     "LAURUSLABS.NS": [68, 1211.20, "2026-05-07", "Pharma", 1299.70],
     "HINDZINC.NS": [160, 641.70, "2026-05-07", "Metals", 670.30],
     "BHARATFORG.NS": [39, 1959.00, "2026-05-15", "Industrial Manufacturing", 1934.00],
-    "ATHERENERG.NS": [100, 943.00, "2026-05-11", "Auto Components", 943.30],   # Fixed Exchange Identifier
+    "ATHERENERG.NS": [100, 943.00, "2026-05-11", "Auto Components", 943.30],   
     "APARINDS.NS": [9, 12905.00, "2026-05-12", "Capital Goods", 12461.00],
     "CARBORUNIV.NS": [111, 1024.71, "2026-05-12", "Capital Goods", 1040.00],
-    "JRRESOURCES.NS": [200, 560.00, "2026-05-12", "Mining / Resources", 566.85], # Fixed Exchange Identifier
+    "JRRESOURCES.NS": [200, 560.00, "2026-05-12", "Mining / Resources", 566.85], 
     "HINDCOPPER.NS": [198, 598.64, "2026-05-13", "Metals", 609.00],
     "APTUS.NS": [300, 270.25, "2026-05-13", "Financial Services", 269.25]
 }
@@ -46,7 +45,7 @@ def send_msg(text):
         payload = json.dumps({"chat_id": chat_id, "text": text, "parse_mode": "Markdown"})
         headers = {"Content-Type": "application/json"}
         conn.request("POST", f"/bot{token}/sendMessage", payload, headers)
-        conn.getresponse()
+        conn.getcall = conn.getresponse()
         conn.close()
     except Exception as e:
         print(f"❌ Telegram Error: {e}")
@@ -67,8 +66,10 @@ def run_simplified_watchdog():
     results = []
     total_val, daily_gain_sum, total_cost = 0.0, 0.0, 0.0
     skipped_tickers = []
+    sector_values = {}
+    total_scrips = len(CURRENT_HOLDINGS)
 
-    # --- FIRST PASS: GLOBAL VALUATION ---
+    # --- FIRST PASS: GLOBAL VALUATION & SECTOR SUMMARY ---
     for ticker, (qty, buy_p, buy_date, sector, fallback_p) in CURRENT_HOLDINGS.items():
         try:
             if (not data.empty) and ('Close' in data.columns) and (ticker in data['Close'].columns):
@@ -77,25 +78,29 @@ def run_simplified_watchdog():
                     latest_close = float(df_ticker['Close'].iloc[-1])
                     yesterday_close = float(df_ticker['Close'].iloc[-2])
                     
-                    total_val += (latest_close * qty)
+                    current_value = (latest_close * qty)
+                    total_val += current_value
                     total_cost += (buy_p * qty)
                     daily_gain_sum += (latest_close - yesterday_close) * qty
+                    sector_values[sector] = sector_values.get(sector, 0.0) + current_value
                     continue
             raise ValueError()
         except Exception:
-            total_val += (fallback_p * qty)
+            current_fallback_value = (fallback_p * qty)
+            total_val += current_fallback_value
             total_cost += (buy_p * qty)
             daily_gain_sum += 0.0 
+            sector_values[sector] = sector_values.get(sector, 0.0) + current_fallback_value
             skipped_tickers.append(ticker.replace('.NS', ''))
 
-    # --- SECOND PASS: EXTREME RISK ANALYSIS ---
+    # --- SECOND PASS: EXTREME DUAL-ENGINE RISK ANALYSIS ---
     for ticker, (qty, buy_p, buy_date, sector, fallback_p) in CURRENT_HOLDINGS.items():
         try:
             if (data.empty) or ('Close' not in data.columns) or (ticker not in data['Close'].columns):
                 continue
                 
             df = data.xs(ticker, axis=1, level=1).dropna().copy()
-            if len(df) < 15: 
+            if len(df) < 60: 
                 continue
             
             close_p = float(df['Close'].iloc[-1])
@@ -112,10 +117,30 @@ def run_simplified_watchdog():
             if valid_df.empty: 
                 valid_df = df.iloc[-5:]
                 
+            # --- ENGINE A: DYNAMIC TRAILING MULTIPLIER CONFIGURATION ---
+            if pnl_pct > 20.0:  # Scaled down to 20% to give winners breathing room much earlier
+                mult = 2.5     
+            elif pnl_pct < 0.0:
+                mult = 1.5     
+            else:
+                mult = 2.0     
+                
             valid_atr = atr.reindex(valid_df.index)
-            ratchet_series = valid_df['Close'] - (2.0 * valid_atr)
-            ratchet = ratchet_series.rolling(20, min_periods=1).max().iloc[-1]
+            ratchet_series = valid_df['Close'] - (mult * valid_atr)
             
+            # --- ENGINE B: STOCK-SPECIFIC VOLATILITY TIME ENGINE ---
+            hist_vol = df['Close'].pct_change().tail(60).std()
+            
+            if hist_vol >= 0.030:
+                lookback_days = 15   
+            elif hist_vol >= 0.018:
+                lookback_days = 25   
+            else:
+                lookback_days = 40   
+            
+            ratchet = ratchet_series.rolling(lookback_days, min_periods=1).max().iloc[-1]
+            
+            # Defensive Structural Guardrails
             ratchet = min(ratchet, close_p * 0.97)
             ratchet = max(ratchet, buy_p * 0.88)
             
@@ -129,7 +154,7 @@ def run_simplified_watchdog():
             
             clean_name = ticker.replace('.NS','').replace('ENERG','')
             line_text = f"*{clean_name}* | Price: ₹{close_p:.1f} ({pnl_pct:+.1f}%) | {status_icon}\n"
-            line_text += f"_Stop Floor: ₹{ratchet:.1f} ({dist_to_stop:.1f}% cushion)_\n\n"
+            line_text += f"_Stop Floor: ₹{ratchet:.1f} ({dist_to_stop:.1f}% cushion) | Config: {lookback_days}D Lookback / {mult}x Mult_\n\n"
             
             results.append({'text': line_text, 'cushion': dist_to_stop})
         except Exception:
@@ -138,6 +163,7 @@ def run_simplified_watchdog():
     # --- REPORT COMPOSITION ---
     report = f"📋 *LIVE RISK WATCHDOG (<6% Cushion): {datetime.now().strftime('%d %b')}*\n"
     report += f"Nifty 50 Index: {nifty_chg:+.2f}%\n"
+    report += f"Total Active Scrips: {total_scrips}\n"
     report += "━━━━━━━━━━━━━━━━━━━━\n\n"
     
     if results:
@@ -147,11 +173,20 @@ def run_simplified_watchdog():
     else:
         report += "✅ All open positions currently have a healthy cushion (>6%).\n\n"
 
+    report += "🏗️ *SECTOR EXPOSURE SUMMARY*\n"
+    for sec, val in sorted(sector_values.items(), key=lambda item: item, reverse=True):
+        allocation_pct = (val / total_val) * 100 if total_val > 0 else 0
+        report += f"• {sec}: {allocation_pct:.1f}%\n"
+    report += "\n"
+
     if skipped_tickers:
         report += f"ℹ️ *Skipped Risk Charts*: {', '.join(skipped_tickers)}\n\n"
 
     port_daily_pct = (daily_gain_sum / (total_val - daily_gain_sum)) * 100 if (total_val - daily_gain_sum) > 0 else 0
     total_pnl_pct = ((total_val - total_cost) / total_cost) * 100 if total_cost > 0 else 0
+    
+    alpha_metric = port_daily_pct - nifty_chg
+    alpha_icon = "🔥" if alpha_metric > 0 else "❄️"
     
     val_lakhs = total_val / 100000
     gain_lakhs = daily_gain_sum / 100000
@@ -160,7 +195,8 @@ def run_simplified_watchdog():
     report += f"📊 *SUMMARY*\n"
     report += f"Live Account Value: ₹{val_lakhs:.2f}L\n"
     report += f"Open Book Profit: {total_pnl_pct:+.2f}%\n"
-    report += f"Session Change: ₹{gain_lakhs:+.2f}L ({port_daily_pct:+.2f}%)"
+    report += f"Session Change: ₹{gain_lakhs:+.2f}L ({port_daily_pct:+.2f}%)\n"
+    report += f"Session Alpha: {alpha_metric:+.2f}% {alpha_icon}"
     
     send_msg(report)
 
