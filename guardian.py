@@ -45,7 +45,7 @@ def send_msg(text):
         payload = json.dumps({"chat_id": chat_id, "text": text, "parse_mode": "Markdown"})
         headers = {"Content-Type": "application/json"}
         conn.request("POST", f"/bot{token}/sendMessage", payload, headers)
-        conn.getcall = conn.getcall = conn.getcall = conn.getresponse()
+        conn.getresponse()  # Fixed multiple-assignment assignment typo string
         conn.close()
     except Exception as e:
         print(f"❌ Telegram Error: {e}")
@@ -113,11 +113,11 @@ def run_simplified_watchdog():
             ], axis=1).max(axis=1)
             atr = tr.rolling(14).mean()
             
-            # --- SQUEEZE BREAKOUT MITIGATION LAYER ---
-            # Capture peak volatility prior to entry to avoid the tight 'Squeeze compression trap'
+            # --- SQUEEZE BREAKOUT ENTRY ENGINE LAYER ---
+            # Capture peak volatility prior to entry to avoid the compressed 'Squeeze trap'
             atr_pre_entry = atr[(atr.index <= buy_date)].tail(60)
             if not atr_pre_entry.empty:
-                entry_atr = float(atr_pre_entry.max())  # Reference maximum historical structural volatility
+                entry_atr = float(atr_pre_entry.max())  # Maximum historical pre-burst structural baseline
             else:
                 entry_atr = float(atr.iloc[-1])
             
@@ -129,11 +129,11 @@ def run_simplified_watchdog():
                 
             # --- ENGINE A: DYNAMIC TRAILING MULTIPLIER CONFIGURATION ---
             if pnl_pct > 20.0:  
-                mult = 2.5     
+                mult = 2.5     # Protect large winners early from deep profit-taking pullbacks
             elif pnl_pct < 0.0:
-                mult = 1.5     
+                mult = 1.5     # Tight capital restriction for entry phases
             else:
-                mult = 2.0     
+                mult = 2.0     # Standard trailing metric
                 
             valid_atr = atr.reindex(valid_df.index)
             ratchet_series = valid_df['Close'] - (mult * valid_atr)
@@ -142,15 +142,15 @@ def run_simplified_watchdog():
             hist_vol = df['Close'].pct_change().tail(60).std()
             
             if hist_vol >= 0.030:
-                lookback_days = 15   # Post-burst momentum profile: Lock tight!
+                lookback_days = 15   # High Volatility Breakouts: Fast profit locking
             elif hist_vol >= 0.018:
                 lookback_days = 25   
             else:
-                lookback_days = 40   
+                lookback_days = 40   # Clean Institutional Trends: Maximum macro breathing room
             
             ratchet = ratchet_series.rolling(lookback_days, min_periods=1).max().iloc[-1]
             
-            # Defensive Dynamic Guardrails
+            # Dynamic Guardrails
             ratchet = min(ratchet, close_p * 0.97)
             ratchet = max(ratchet, initial_atr_floor)
             
@@ -184,7 +184,7 @@ def run_simplified_watchdog():
         report += "✅ All open positions currently have a healthy cushion (>6%).\n\n"
 
     report += "🏗️ *SECTOR EXPOSURE SUMMARY*\n"
-    for sec, val in sorted(sector_values.items(), key=lambda item: item, reverse=True): 
+    for sec, val in sorted(sector_values.items(), key=lambda item: item[1], reverse=True): 
         allocation_pct = (val / total_val) * 100 if total_val > 0 else 0
         report += f"• {sec}: {allocation_pct:.1f}%\n"
     report += "\n"
