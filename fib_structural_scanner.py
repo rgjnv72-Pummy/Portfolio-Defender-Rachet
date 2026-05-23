@@ -118,7 +118,8 @@ def process_hierarchy_prediction_scanner(history_cache: dict, window_m: int = 20
         is_rsi_resting = True if "NHPC" in ticker else (30.0 <= current_rsi <= 60.0)
         is_delivery_proxy_valid = volume_series[-1] >= MIN_AVG_VOLUME
 
-        if not (is_near_ema50 Useful and is_compressed and is_volume_dry and is_rsi_resting and is_delivery_proxy_valid):
+        # SYNTAX ERROR FIXED HERE
+        if not (is_near_ema50 and is_compressed and is_volume_dry and is_rsi_resting and is_delivery_proxy_valid):
             continue
 
         raw_path = close_series[-window_m:]
@@ -200,7 +201,6 @@ def run_scan():
         upside_potential_pct = calculated_sl_pct * 2.0
         target_price = price * (1.0 + (upside_potential_pct / 100.0))
 
-        # Standard prefix applied globally to all matched tickers
         msg += f"• <b>{ticker}</b>\n"
         msg += f"  ↳ Profile: {profile}\n"
         msg += f"  <code>[Entry: ₹{price:,.2f} | Target: ₹{target_price:,.2f} (+{upside_potential_pct:.1f}%) | SL: ₹{stop_loss_price:,.2f} (-{calculated_sl_pct:.1f}%)]</code>\n\n"
@@ -214,4 +214,17 @@ def run_scan():
         print("✅ Telemetry payload successfully broadcast via HTML gateway.")
 
 if __name__ == "__main__":
+    run_scan()
+
+    
+        
+
+        
+
+   
+   
+  
+  
+       
+       
     run_scan()
